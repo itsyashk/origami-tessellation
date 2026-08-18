@@ -1,0 +1,77 @@
+# Product
+
+An interactive origami mathematics and tessellation design tool. You draw a crease
+pattern; the app continuously tells you whether it can fold flat, and offers to fix it.
+
+Think GeoGebra for origami: the geometry is the document, the mathematics is live,
+and the feedback appears next to the thing you are touching.
+
+## The loop
+
+```
+DRAW ──► ANALYZE ──► FEEDBACK ──► SNAP / SUGGEST ──► DRAW ...
+```
+
+Every pointer move through this loop runs synchronously, outside React
+(`src/editor/controller.ts` → engines → Zustand → SVG layers).
+
+- **Draw** — place a vertex, draw a crease, drag a vertex, assign mountain/valley.
+- **Analyze** — `analyzeDocument()` recomputes Kawasaki and Maekawa for every vertex
+  on every document change, including each mid-drag frame (`src/origami/analysis.ts`).
+- **Feedback** — vertex rings recolor, badges appear beside the offending vertex
+  ("Kawasaki · 2.1° off"), the analysis chip updates ("3/4 flat-foldable").
+- **Snap / suggest** — while dragging, `findKawasakiSnap()` searches for a nearby
+  position that satisfies Kawasaki exactly and pulls the vertex onto it, labelled
+  "Kawasaki ✓" (`src/origami/kawasakiSnap.ts`).
+
+There is **no "check" button, and there never will be.** Validity is a property of
+the canvas at all times, not the result of a command. Correspondingly there are no
+modal error dialogs about geometry: the only `window.alert` in the app is for a
+malformed imported file.
+
+## V1 — what exists today
+
+| Area | Shipped |
+| --- | --- |
+| Tools | Select (V), Vertex (P), Crease (C), Pan (H) |
+| Drawing | Click-place vertices; click-click **and** press-drag creases with chaining; clicking a crease with the vertex tool splits it |
+| Editing | Drag vertices with live analysis; numeric X/Y in the inspector; delete selection |
+| Analysis | Per-vertex Kawasaki (signed residual in degrees) and Maekawa (M−V, incl. partial-assignment satisfiability); document roll-up counts |
+| Snapping | Existing vertex → Kawasaki locus → 15° angle ray → axis alignment → point-on-crease → 10-unit grid |
+| Assignment | Mountain / valley / unassigned via inspector or keys `1` `2` `3`; `boundary` exists in the model for FOLD compatibility |
+| Tessellation | "Repeat" tiles the selection (or whole pattern) in a rows × columns grid, merging coincident vertices and growing the paper |
+| History | Snapshot undo/redo, 200 steps; one gesture = one step |
+| Files | Built-in examples (Square Twist, Single Vertex Study), JSON import, `.origami.json` and `.svg` export |
+| Viewport | Wheel zoom at cursor, pinch, middle/space drag pan, fit-to-paper, zoom readout |
+| Platform | Responsive desktop + touch layout; onboarding hint; keyboard shortcut sheet |
+
+Opening the app loads the Square Twist rather than a blank sheet — there is
+something to drag, and analysis is visibly alive, in the first second.
+
+## Long-term direction
+
+Roughly in the order they become interesting (see `ROADMAP.md` for milestones):
+
+- **Tessellations proper** — unit cells, edge-matching constraints, symmetry groups,
+  rather than today's bounding-box repeat.
+- **Symmetry tools** — mirror/rotational construction where one edit updates all
+  symmetric copies.
+- **Flat-foldability solving** — beyond local conditions: big-little-big, layer
+  ordering, self-intersection; suggest edits that make a pattern foldable.
+- **Inverse design** — describe a target shape, get a crease pattern.
+- **Folded preview** — 2D folded state first, then a 3D folded model.
+- **Generated folding tutorials** — step sequences derived from the pattern.
+- **More formats** — FOLD import/export (the model is already shaped for it), PDF.
+- **Native iPhone app** — see `IOS.md`; the model and engines are written to port.
+
+## Feel
+
+Playful paper-craft on the outside, rigorous tool on the inside.
+
+- Warm off-white stock, graph-paper backdrop, hand-written accent type, a paper
+  sheet with a real drop shadow.
+- Precise numbers everywhere they matter: tabular figures, residuals to 0.1°,
+  sector angles listed, expected-vs-actual spelled out in prose.
+- The canvas stays clean; personality lives in the chrome. See `DESIGN_SYSTEM.md`.
+- Feedback is never scolding. An invalid vertex says how far off it is and what
+  would fix it, and the snap does the fixing for you when you get close.

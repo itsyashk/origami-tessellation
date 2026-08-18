@@ -17,8 +17,10 @@ import { VertexLayer } from "./layers/VertexLayer";
 import { DraftLayer } from "./layers/DraftLayer";
 import { SnapLayer } from "./layers/SnapLayer";
 import { AnalysisBadgeLayer } from "./layers/AnalysisBadgeLayer";
+import { PlacementPreviewLayer } from "./layers/PlacementPreviewLayer";
 import { ZoomControls } from "./ZoomControls";
 import { StatusBar } from "./StatusBar";
+import { EmptyState } from "./EmptyState";
 
 const isEditableTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
@@ -141,6 +143,7 @@ export function CanvasStage() {
         onPointerMove={(ev) => controller.pointerMove(localPoint(ev), ev)}
         onPointerUp={(ev) => controller.pointerUp(localPoint(ev), ev)}
         onPointerCancel={(ev) => controller.pointerCancel(ev)}
+        onPointerLeave={() => useEditorStore.getState().setPointerPaper(null)}
         onContextMenu={(ev) => {
           ev.preventDefault();
           controller.cancelGesture();
@@ -150,9 +153,11 @@ export function CanvasStage() {
         <CreaseLayer />
         <SnapLayer />
         <DraftLayer />
+        <PlacementPreviewLayer />
         <VertexLayer />
         <AnalysisBadgeLayer />
       </svg>
+      <EmptyState />
       <ZoomControls containerRef={containerRef} />
       <StatusBar />
     </div>
