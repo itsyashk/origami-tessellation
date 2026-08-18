@@ -48,7 +48,7 @@ export function EditorShell() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 16 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                className="absolute right-4 top-4 z-20 max-h-[calc(100%-6rem)] overflow-y-auto"
+                className="absolute inset-x-3 bottom-20 top-auto z-20 max-h-[45%] overflow-y-auto md:inset-x-auto md:bottom-auto md:right-4 md:top-4 md:max-h-[calc(100%-6rem)]"
               >
                 <InspectorPanel />
               </motion.div>

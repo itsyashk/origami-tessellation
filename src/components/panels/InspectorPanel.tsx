@@ -82,7 +82,7 @@ export function InspectorPanel() {
 
   return (
     <aside
-      className="craft-card flex w-60 flex-col gap-4 p-4"
+      className="craft-card flex w-full flex-col gap-4 p-4 md:w-64"
       data-testid="inspector-panel"
       aria-label="Selection inspector"
     >

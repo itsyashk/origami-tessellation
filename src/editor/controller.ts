@@ -518,6 +518,29 @@ export class EditorController {
       return true;
     }
 
+    // Arrow keys nudge the selected vertex (1 unit, Shift = 10) — precise,
+    // keyboard-accessible editing that still flows through live analysis.
+    const nudge: Record<string, { x: number; y: number }> = {
+      ArrowLeft: { x: -1, y: 0 },
+      ArrowRight: { x: 1, y: 0 },
+      ArrowUp: { x: 0, y: 1 }, // paper space is y-up
+      ArrowDown: { x: 0, y: -1 },
+    };
+    if (nudge[key] && !mod) {
+      const selected = [...this.editor.selection.vertexIds];
+      if (selected.length !== 1) return false;
+      const doc = this.docStore.doc;
+      const vertex = doc.vertices.find((v) => v.id === selected[0]);
+      if (!vertex) return false;
+      const step = ev.shiftKey ? 10 : 1;
+      const next = clampToPaper(doc.paper, {
+        x: vertex.x + nudge[key].x * step,
+        y: vertex.y + nudge[key].y * step,
+      });
+      this.docStore.commit(moveVertex(doc, vertex.id, next));
+      return true;
+    }
+
     const toolByKey: Record<string, ToolId> = {
       v: "select",
       p: "vertex",
