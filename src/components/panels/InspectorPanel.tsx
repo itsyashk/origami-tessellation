@@ -93,28 +93,43 @@ export function InspectorPanel() {
             Vertex
           </h2>
           <div className="flex gap-2">
-            {(["x", "y"] as const).map((axis) => (
-              <label key={axis} className="flex flex-1 items-center gap-1.5 text-xs font-bold text-(--ink-faint)">
-                {axis.toUpperCase()}
-                <input
-                  className="field tnum"
-                  type="number"
-                  step="1"
-                  value={Number(singleVertex[axis].toFixed(2))}
-                  data-testid={`vertex-${axis}-input`}
-                  onChange={(ev) => {
-                    const value = Number(ev.target.value);
-                    if (!Number.isFinite(value)) return;
-                    commit(
-                      moveVertex(doc, singleVertex.id, {
-                        x: axis === "x" ? value : singleVertex.x,
-                        y: axis === "y" ? value : singleVertex.y,
-                      }),
-                    );
-                  }}
-                />
-              </label>
-            ))}
+            {(["x", "y"] as const).map((axis) => {
+              // One undo step per edit: uncontrolled while typing, committed
+              // on blur/Enter. The key refreshes the field when the vertex
+              // moves by other means (drag, nudge, undo).
+              const current = Number(singleVertex[axis].toFixed(2));
+              const commitValue = (raw: string) => {
+                if (raw.trim() === "") return;
+                const value = Number(raw);
+                if (!Number.isFinite(value) || value === current) return;
+                commit(
+                  moveVertex(doc, singleVertex.id, {
+                    x: axis === "x" ? value : singleVertex.x,
+                    y: axis === "y" ? value : singleVertex.y,
+                  }),
+                );
+              };
+              return (
+                <label
+                  key={axis}
+                  className="flex flex-1 items-center gap-1.5 text-xs font-bold text-(--ink-faint)"
+                >
+                  {axis.toUpperCase()}
+                  <input
+                    key={`${singleVertex.id}-${axis}-${current}`}
+                    className="field tnum"
+                    type="number"
+                    step="1"
+                    defaultValue={current}
+                    data-testid={`vertex-${axis}-input`}
+                    onBlur={(ev) => commitValue(ev.target.value)}
+                    onKeyDown={(ev) => {
+                      if (ev.key === "Enter") (ev.target as HTMLInputElement).blur();
+                    }}
+                  />
+                </label>
+              );
+            })}
           </div>
           <Row label="Degree">{va.degree}</Row>
           <Row label="Position">{va.isInterior ? "interior" : "boundary"}</Row>

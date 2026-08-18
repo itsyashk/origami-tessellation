@@ -30,7 +30,8 @@ export const tileMotif = (
   doc: OrigamiDocument,
   options: TileOptions,
 ): OrigamiDocument => {
-  const { rows, columns, gap = 0 } = options;
+  let { rows, columns } = options;
+  const gap = options.gap ?? 0;
   if (rows < 1 || columns < 1 || (rows === 1 && columns === 1)) return doc;
 
   const motifIds =
@@ -50,7 +51,11 @@ export const tileMotif = (
   const maxY = Math.max(...motifVertices.map((v) => v.y));
   const strideX = maxX - minX + gap;
   const strideY = maxY - minY + gap;
-  if (strideX <= 0 && strideY <= 0) return doc;
+  // A zero-extent axis (e.g. a purely horizontal motif tiled by rows) would
+  // stack every copy onto the original; drop that axis instead.
+  if (strideX <= 0) columns = 1;
+  if (strideY <= 0) rows = 1;
+  if (rows === 1 && columns === 1) return doc;
 
   let result: OrigamiDocument = {
     ...doc,
@@ -101,10 +106,12 @@ export const tileMotif = (
     }
   }
 
-  // Grow the paper to contain the tiled pattern.
+  // Grow the paper to contain the tiled pattern. Exact maxima, not rounded:
+  // rounding up would strand edge vertices a fraction inside the new
+  // boundary and reclassify them as interior.
   const allX = result.vertices.map((v) => v.x);
   const allY = result.vertices.map((v) => v.y);
-  const width = Math.max(result.paper.width, Math.ceil(Math.max(...allX)));
-  const height = Math.max(result.paper.height, Math.ceil(Math.max(...allY)));
+  const width = Math.max(result.paper.width, Math.max(...allX));
+  const height = Math.max(result.paper.height, Math.max(...allY));
   return { ...result, paper: { width, height } };
 };

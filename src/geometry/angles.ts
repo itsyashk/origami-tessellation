@@ -8,7 +8,9 @@ export const radToDeg = (rad: number): number => (rad * 180) / Math.PI;
 /** Normalize an angle into [0, 2π). */
 export const normalizeAngle = (angle: number): number => {
   const a = angle % TAU;
-  return a < 0 ? a + TAU : a;
+  const result = a < 0 ? a + TAU : a;
+  // A tiny negative input can round to exactly 2π after the addition.
+  return result >= TAU ? 0 : result;
 };
 
 /** Normalize an angle into (-π, π]. */

@@ -58,8 +58,14 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   commit: (next) =>
     set((state) => ({
       doc: next,
-      past: [...state.past.slice(-HISTORY_LIMIT + 1), state.doc],
+      // If a preview gesture is somehow still open, its baseline — not the
+      // transient mid-gesture doc — is what undo must return to.
+      past: [
+        ...state.past.slice(-HISTORY_LIMIT + 1),
+        state.transactionBase ?? state.doc,
+      ],
       future: [],
+      transactionBase: null,
     })),
 
   preview: (next) => set({ doc: next }),

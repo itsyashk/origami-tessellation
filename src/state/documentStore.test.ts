@@ -68,6 +68,22 @@ describe("documentStore undo/redo", () => {
     expect(store().past).toHaveLength(1);
   });
 
+  it("commit during an open transaction records the baseline, not the transient doc", () => {
+    const d1 = addVertex(store().doc, { x: 5, y: 5 }, "v1").doc;
+    store().commit(d1);
+
+    store().beginPreview();
+    store().preview(moveVertex(store().doc, "v1", { x: 40, y: 40 }));
+    // Something commits mid-gesture (e.g. a keyboard action).
+    store().commit(addVertex(store().doc, { x: 9, y: 9 }).doc);
+
+    expect(store().transactionBase).toBeNull();
+    store().undo();
+    // Undo returns to the pre-gesture baseline, not the mid-drag position.
+    expect(store().doc.vertices[0]).toMatchObject({ x: 5, y: 5 });
+    expect(store().doc.vertices).toHaveLength(1);
+  });
+
   it("undo with nothing to undo is a no-op", () => {
     const doc = store().doc;
     store().undo();

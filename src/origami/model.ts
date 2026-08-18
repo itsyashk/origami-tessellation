@@ -11,7 +11,7 @@
 
 import { creaseId, vertexId } from "@/lib/id";
 import type { Vec2 } from "@/geometry/vec2";
-import { POSITION_EPSILON } from "@/geometry/tolerance";
+import { BOUNDARY_EPSILON, POSITION_EPSILON } from "@/geometry/tolerance";
 
 export type CreaseAssignment = "mountain" | "valley" | "unassigned" | "boundary";
 
@@ -109,16 +109,29 @@ export const findCreaseBetween = (
       (c.startVertexId === bId && c.endVertexId === aId),
   );
 
-/** Whether a position lies on the paper boundary (within epsilon). */
+/**
+ * Whether a position lies ON the paper boundary: inside (or within epsilon
+ * of) the sheet AND within epsilon of one of its edges. Points floating
+ * outside the sheet are NOT boundary points.
+ */
 export const isOnPaperBoundary = (
   paper: PaperSpec,
   pos: Vec2,
-  epsilon = POSITION_EPSILON,
-): boolean =>
-  Math.abs(pos.x) <= epsilon ||
-  Math.abs(pos.y) <= epsilon ||
-  Math.abs(pos.x - paper.width) <= epsilon ||
-  Math.abs(pos.y - paper.height) <= epsilon;
+  epsilon = BOUNDARY_EPSILON,
+): boolean => {
+  const inside =
+    pos.x >= -epsilon &&
+    pos.x <= paper.width + epsilon &&
+    pos.y >= -epsilon &&
+    pos.y <= paper.height + epsilon;
+  if (!inside) return false;
+  return (
+    Math.abs(pos.x) <= epsilon ||
+    Math.abs(pos.y) <= epsilon ||
+    Math.abs(pos.x - paper.width) <= epsilon ||
+    Math.abs(pos.y - paper.height) <= epsilon
+  );
+};
 
 export const clampToPaper = (paper: PaperSpec, pos: Vec2): Vec2 => ({
   x: Math.min(paper.width, Math.max(0, pos.x)),
@@ -160,6 +173,12 @@ export const addCrease = (
 ): AddCreaseResult => {
   if (startVertexId === endVertexId) {
     throw new Error("A crease cannot connect a vertex to itself");
+  }
+  if (
+    !doc.vertices.some((v) => v.id === startVertexId) ||
+    !doc.vertices.some((v) => v.id === endVertexId)
+  ) {
+    throw new Error("Crease endpoints must be existing vertices");
   }
   const existing = findCreaseBetween(doc, startVertexId, endVertexId);
   if (existing) return { doc, crease: existing };

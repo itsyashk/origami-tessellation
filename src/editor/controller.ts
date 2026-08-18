@@ -316,6 +316,14 @@ export class EditorController {
       if (this.pointers.size < 2) {
         this.role = { kind: "idle" };
         this.pinchStart = null;
+      } else {
+        // Still 2+ fingers down (a third finger lifted): re-baseline so the
+        // zoom doesn't jump to the new pair's unrelated separation.
+        const [a, b] = [...this.pointers.values()];
+        this.pinchStart = {
+          dist: Math.max(20, distance(a.screen, b.screen)),
+          zoom: this.editor.viewport.zoom,
+        };
       }
       return;
     }
@@ -397,7 +405,15 @@ export class EditorController {
       snap ? snap.position : clamped,
       this.tolerance(KAWASAKI_SNAP_PX),
     );
-    if (kawasaki) {
+    // The descent is unconstrained; a locus continuing past the paper edge
+    // must not pull the vertex off the sheet.
+    const onSheet =
+      kawasaki &&
+      kawasaki.position.x >= 0 &&
+      kawasaki.position.x <= doc.paper.width &&
+      kawasaki.position.y >= 0 &&
+      kawasaki.position.y <= doc.paper.height;
+    if (kawasaki && onSheet) {
       snap = {
         kind: "kawasaki",
         position: kawasaki.position,
@@ -437,6 +453,11 @@ export class EditorController {
     if (!draft) return;
     const doc = this.docStore.doc;
     const startVertex = doc.vertices.find((v) => v.id === draft.startVertexId);
+    if (!startVertex) {
+      // The draft's anchor no longer exists (undo/delete raced the draft).
+      this.cancelGesture();
+      return;
+    }
     const snap = this.snapForPlacement(
       paperPos,
       startVertex ? { x: startVertex.x, y: startVertex.y } : null,
@@ -493,11 +514,15 @@ export class EditorController {
     }
 
     if (mod && (key === "z" || key === "Z")) {
+      // A live draft/drag references document state that undo may remove —
+      // finish the gesture story first, then time-travel.
+      this.cancelGesture();
       if (ev.shiftKey) this.docStore.redo();
       else this.docStore.undo();
       return true;
     }
     if (mod && (key === "y" || key === "Y")) {
+      this.cancelGesture();
       this.docStore.redo();
       return true;
     }
@@ -574,5 +599,10 @@ export class EditorController {
 
   keyUp(ev: { key: string }): void {
     if (ev.key === " ") this.spaceHeld = false;
+  }
+
+  /** The window lost focus: held keys will never get their keyup. */
+  windowBlur(): void {
+    this.spaceHeld = false;
   }
 }

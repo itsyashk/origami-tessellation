@@ -49,7 +49,7 @@ export function AnalysisBadgeLayer() {
         y: p.y,
         text:
           k.status === "invalid" && k.sectorAngles.length === 0
-            ? `Kawasaki · ${va.degree} creases`
+            ? "Kawasaki · odd degree"
             : `Kawasaki · ${off.toFixed(1)}° off`,
         tone: k.status === "invalid" ? "invalid" : "near",
       });

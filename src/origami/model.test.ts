@@ -72,6 +72,14 @@ describe("document operations", () => {
     expect(isOnPaperBoundary(paper, { x: 0, y: 50 })).toBe(true);
     expect(isOnPaperBoundary(paper, { x: 200, y: 200 })).toBe(true);
     expect(isOnPaperBoundary(paper, { x: 100, y: 100 })).toBe(false);
+    // Points outside the sheet are not boundary points.
+    expect(isOnPaperBoundary(paper, { x: 0, y: 500 })).toBe(false);
+    expect(isOnPaperBoundary(paper, { x: -3, y: 50 })).toBe(false);
+  });
+
+  it("refuses creases whose endpoints don't exist", () => {
+    const { doc } = addVertex(emptyDocument(), { x: 0, y: 0 }, "a");
+    expect(() => addCrease(doc, "a", "ghost")).toThrow(/existing/);
   });
 });
 
@@ -133,6 +141,24 @@ describe("tiling", () => {
   it("returns the document unchanged for a 1×1 tile", () => {
     const doc = squareTwist();
     expect(tileMotif(doc, { rows: 1, columns: 1 })).toBe(doc);
+  });
+
+  it("drops a degenerate tiling axis instead of stacking copies", () => {
+    // A purely horizontal motif has zero y-extent; tiling it by rows would
+    // stack copies in place. The row axis is dropped, columns still tile.
+    let doc = emptyDocument();
+    const a = addVertex(doc, { x: 0, y: 50 }, "a");
+    doc = a.doc;
+    const b = addVertex(doc, { x: 40, y: 50 }, "b");
+    doc = b.doc;
+    doc = addCrease(doc, "a", "b").doc;
+
+    const tiled = tileMotif(doc, { rows: 3, columns: 2 });
+    expect(tiled.creases).toHaveLength(2);
+    expect(tiled.vertices).toHaveLength(3); // shared middle vertex merges
+
+    const stacked = tileMotif(doc, { rows: 3, columns: 1 });
+    expect(stacked).toBe(doc);
   });
 
   it("preserves assignments on copies", () => {

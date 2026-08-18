@@ -165,10 +165,14 @@ export const snapToAlignments = (
       to: { x: Math.max(bestY.x, snapped.x) + 20, y: bestY.y },
     });
   }
+  const d = distance(pos, snapped);
+  // Snapping both axes at once can exceed the per-axis tolerance (×√2);
+  // keep the overall contract that no snap moves farther than `tolerance`.
+  if (d > tolerance) return null;
   return {
     kind: "align",
     position: snapped,
-    distance: distance(pos, snapped),
+    distance: d,
     vertexIds,
     guides,
   };

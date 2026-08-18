@@ -123,6 +123,12 @@ export const analyzeKawasaki = (
   if (creases.length === 0) {
     return notApplicable("This vertex has no creases yet.");
   }
+  if (creases.length === 1) {
+    // A dangling crease end is work in progress, not a math violation.
+    return notApplicable(
+      "An unfinished crease end — connect it onward or move it to the paper edge.",
+    );
+  }
   if (creases.length % 2 !== 0) {
     const analysis = notApplicable(
       `An interior vertex needs an even number of creases to fold flat; this one has ${creases.length}.`,
@@ -198,7 +204,7 @@ export const analyzeMaekawa = (
       explanation: "Maekawa's theorem applies only to interior vertices.",
     };
   }
-  if (creases.length === 0) {
+  if (creases.length <= 1) {
     return {
       status: "not-applicable",
       mountains,
@@ -206,7 +212,10 @@ export const analyzeMaekawa = (
       unassigned,
       difference,
       expectedDifference: null,
-      explanation: "This vertex has no creases yet.",
+      explanation:
+        creases.length === 0
+          ? "This vertex has no creases yet."
+          : "An unfinished crease end — Maekawa applies once the vertex is complete.",
     };
   }
   if (unassigned > 0) {
@@ -249,7 +258,7 @@ export const analyzeVertex = (
   creases: readonly Crease[],
   vertices: Map<string, Vertex>,
 ): VertexAnalysis => {
-  const isInterior = !isOnPaperBoundary(doc.paper, vertex, 1e-4);
+  const isInterior = !isOnPaperBoundary(doc.paper, vertex);
   const kawasaki = analyzeKawasaki(vertex, creases, vertices, isInterior);
   const maekawa = analyzeMaekawa(creases, isInterior);
   const locallyFlatFoldable =
@@ -286,7 +295,8 @@ export const analyzeDocument = (doc: OrigamiDocument): DocumentAnalysis => {
     const creases = adjacency.get(vertex.id) ?? [];
     const analysis = analyzeVertex(doc, vertex, creases, vertices);
     byVertex.set(vertex.id, analysis);
-    if (analysis.isInterior && analysis.degree > 0) {
+    // Degree-1 vertices are in-progress geometry; they don't enter the tally.
+    if (analysis.isInterior && analysis.degree >= 2) {
       interiorVertexCount++;
       const k = analysis.kawasaki.status;
       const m = analysis.maekawa.status;

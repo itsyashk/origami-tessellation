@@ -110,11 +110,14 @@ export function CanvasStage() {
       if (controller.keyDown(ev)) ev.preventDefault();
     };
     const onKeyUp = (ev: KeyboardEvent) => controller.keyUp(ev);
+    const onBlur = () => controller.windowBlur();
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
     };
   }, [controller]);
 

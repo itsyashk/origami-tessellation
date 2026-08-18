@@ -47,6 +47,7 @@ export function TopBar() {
   const loadDocument = useDocumentStore((s) => s.loadDocument);
   const newDocument = useDocumentStore((s) => s.newDocument);
   const clearSelection = useEditorStore((s) => s.clearSelection);
+  const resetGesture = useEditorStore((s) => s.resetGesture);
 
   const [rows, setRows] = useState(2);
   const [cols, setCols] = useState(2);
@@ -259,7 +260,10 @@ export function TopBar() {
       <button
         type="button"
         className="btn btn-ghost h-9 w-9 px-0"
-        onClick={undo}
+        onClick={() => {
+          resetGesture();
+          undo();
+        }}
         disabled={!canUndo}
         aria-label="Undo"
         data-testid="undo-button"
@@ -270,7 +274,10 @@ export function TopBar() {
       <button
         type="button"
         className="btn btn-ghost h-9 w-9 px-0"
-        onClick={redo}
+        onClick={() => {
+          resetGesture();
+          redo();
+        }}
         disabled={!canRedo}
         aria-label="Redo"
         data-testid="redo-button"

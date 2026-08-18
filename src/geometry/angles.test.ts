@@ -17,6 +17,11 @@ describe("normalizeAngle", () => {
     expect(normalizeAngle(-Math.PI / 2)).toBeCloseTo((3 * Math.PI) / 2, 12);
     expect(normalizeAngle(5 * TAU + 0.25)).toBeCloseTo(0.25, 12);
   });
+
+  it("never returns exactly 2π (tiny negative inputs)", () => {
+    expect(normalizeAngle(-1e-17)).toBe(0);
+    expect(normalizeAngle(-Number.MIN_VALUE)).toBe(0);
+  });
 });
 
 describe("normalizeSignedAngle", () => {

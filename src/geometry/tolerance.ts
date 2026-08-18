@@ -9,6 +9,12 @@
 /** Positions closer than this are considered coincident (paper units). */
 export const POSITION_EPSILON = 1e-6;
 
+/**
+ * How close (paper units) a vertex must be to a paper edge to count as a
+ * boundary vertex — exempt from interior flat-foldability theorems.
+ */
+export const BOUNDARY_EPSILON = 1e-4;
+
 /** Angles closer than this are considered equal (radians), ~0.0006°. */
 export const ANGLE_EPSILON = 1e-5;
 

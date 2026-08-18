@@ -55,7 +55,7 @@ export const findKawasakiSnap = (
   const analyzable = (vid: string): boolean => {
     const v = vertices.get(vid);
     if (!v) return false;
-    if (isOnPaperBoundary(base.paper, v, 1e-4)) return false;
+    if (isOnPaperBoundary(base.paper, v)) return false;
     const deg = (adjacency.get(vid) ?? []).length;
     return deg >= 2 && deg % 2 === 0;
   };

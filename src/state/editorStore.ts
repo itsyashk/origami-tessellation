@@ -11,6 +11,7 @@ import { create } from "zustand";
 import type { Vec2 } from "@/geometry/vec2";
 import type { SnapHit } from "@/geometry/snap";
 import type { Viewport } from "@/editor/viewport";
+import { useDocumentStore } from "./documentStore";
 
 export type ToolId = "select" | "vertex" | "crease" | "pan";
 
@@ -47,6 +48,8 @@ interface EditorState {
   pointerPaper: Vec2 | null;
 
   setTool: (tool: ToolId) => void;
+  /** Abandon any in-flight gesture (draft/drag) and its doc transaction. */
+  resetGesture: () => void;
   setSelection: (selection: Selection) => void;
   selectVertex: (id: string, additive?: boolean) => void;
   selectCrease: (id: string, additive?: boolean) => void;
@@ -76,8 +79,18 @@ export const useEditorStore = create<EditorState>((set) => ({
   draggingVertexId: null,
   pointerPaper: null,
 
-  setTool: (tool) =>
-    set({ tool, creaseDraft: null, activeSnap: null }),
+  setTool: (tool) => {
+    // Switching tools must abandon any in-flight gesture completely,
+    // including its document transaction — otherwise a later cancel could
+    // roll the document back to a stale baseline.
+    useDocumentStore.getState().cancelPreview();
+    set({ tool, creaseDraft: null, activeSnap: null, draggingVertexId: null });
+  },
+
+  resetGesture: () => {
+    useDocumentStore.getState().cancelPreview();
+    set({ creaseDraft: null, activeSnap: null, draggingVertexId: null });
+  },
 
   setSelection: (selection) => set({ selection }),
 
