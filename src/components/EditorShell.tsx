@@ -15,12 +15,29 @@ import { InspectorPanel } from "./panels/InspectorPanel";
 import { CanvasStage } from "./editor/CanvasStage";
 import { OnboardingHint } from "./OnboardingHint";
 import { FoldPreview } from "./fold/FoldPreview";
+import { PatternBrowser } from "./patterns/PatternBrowser";
+import { useEffect } from "react";
 import { useEditorStore } from "@/state/editorStore";
+
+const GALLERY_SEEN_KEY = "origami.gallery.seen";
 
 export function EditorShell() {
   const hasSelection = useEditorStore(
     (s) => s.selection.vertexIds.size > 0 || s.selection.creaseIds.size > 0,
   );
+
+  // First visit: open straight into the pattern library — the tutorial
+  // front door. (Zustand set, not React setState, so no render cascade.)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(GALLERY_SEEN_KEY) !== "1") {
+        localStorage.setItem(GALLERY_SEEN_KEY, "1");
+        useEditorStore.getState().setGalleryOpen(true);
+      }
+    } catch {
+      // Private browsing: start in the editor.
+    }
+  }, []);
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
@@ -58,6 +75,7 @@ export function EditorShell() {
         </main>
 
         <FoldPreview />
+        <PatternBrowser />
 
         {/* Bottom toolbar — small screens */}
         <div className="craft-card absolute bottom-3 left-1/2 z-30 -translate-x-1/2 px-2 py-1 md:hidden">

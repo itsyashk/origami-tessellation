@@ -15,7 +15,6 @@ import {
   ChevronDown,
   Layers,
 } from "lucide-react";
-import { EXAMPLES } from "@/origami/examples";
 import { parseDocument } from "@/origami/serialization";
 import { tileMotif } from "@/origami/tiling";
 import { renameDocument } from "@/origami/model";
@@ -50,18 +49,12 @@ export function TopBar() {
   const clearSelection = useEditorStore((s) => s.clearSelection);
   const resetGesture = useEditorStore((s) => s.resetGesture);
   const setFoldOpen = useEditorStore((s) => s.setFoldOpen);
+  const setGalleryOpen = useEditorStore((s) => s.setGalleryOpen);
 
   const [rows, setRows] = useState(2);
   const [cols, setCols] = useState(2);
   const [repeatOpen, setRepeatOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const openExample = (slug: string) => {
-    const example = EXAMPLES.find((e) => e.slug === slug);
-    if (!example) return;
-    clearSelection();
-    loadDocument(example.build());
-  };
 
   const importJson = async (file: File) => {
     try {
@@ -168,33 +161,17 @@ export function TopBar() {
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
 
-      {/* Examples */}
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger asChild>
-          <button type="button" className="btn btn-ghost" data-testid="menu-examples">
-            <BookOpen size={15} />
-            <span className="hidden md:inline">Examples</span>
-            <ChevronDown size={13} />
-          </button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content className="popover-surface min-w-64" sideOffset={6} align="start">
-            {EXAMPLES.map((example) => (
-              <DropdownMenu.Item
-                key={example.slug}
-                className="menu-item flex-col items-start gap-0.5"
-                data-testid={`example-${example.slug}`}
-                onSelect={() => openExample(example.slug)}
-              >
-                <span>{example.title}</span>
-                <span className="text-[11px] font-medium text-(--ink-faint)">
-                  {example.description}
-                </span>
-              </DropdownMenu.Item>
-            ))}
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+      {/* Pattern library */}
+      <button
+        type="button"
+        className="btn btn-ghost"
+        data-testid="menu-patterns"
+        onClick={() => setGalleryOpen(true)}
+        title="Pattern library (G)"
+      >
+        <BookOpen size={15} />
+        <span className="hidden md:inline">Patterns</span>
+      </button>
 
       {/* Repeat */}
       <Popover.Root open={repeatOpen} onOpenChange={setRepeatOpen}>
@@ -319,6 +296,7 @@ export function TopBar() {
             <ShortcutRow keys={["P"]} label="Place vertices" />
             <ShortcutRow keys={["C"]} label="Draw creases" />
             <ShortcutRow keys={["H"]} label="Pan" />
+            <ShortcutRow keys={["G"]} label="Pattern library" />
             <ShortcutRow keys={["F"]} label="Fold preview" />
             <ShortcutRow keys={["1", "2", "3"]} label="Mountain / valley / clear" />
             <ShortcutRow keys={["Ctrl", "Z"]} label="Undo" />

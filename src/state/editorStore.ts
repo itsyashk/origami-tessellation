@@ -48,6 +48,8 @@ interface EditorState {
   pointerPaper: Vec2 | null;
   /** Whether the fold preview overlay is open. */
   foldOpen: boolean;
+  /** Whether the pattern library gallery is open. */
+  galleryOpen: boolean;
 
   setTool: (tool: ToolId) => void;
   /** Abandon any in-flight gesture (draft/drag) and its doc transaction. */
@@ -63,6 +65,7 @@ interface EditorState {
   setDraggingVertexId: (id: string | null) => void;
   setPointerPaper: (pos: Vec2 | null) => void;
   setFoldOpen: (open: boolean) => void;
+  setGalleryOpen: (open: boolean) => void;
 }
 
 const toggle = (set: ReadonlySet<string>, id: string): Set<string> => {
@@ -82,6 +85,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   draggingVertexId: null,
   pointerPaper: null,
   foldOpen: false,
+  galleryOpen: false,
 
   setTool: (tool) => {
     // Switching tools must abandon any in-flight gesture completely,
@@ -120,4 +124,5 @@ export const useEditorStore = create<EditorState>((set) => ({
   setDraggingVertexId: (draggingVertexId) => set({ draggingVertexId }),
   setPointerPaper: (pointerPaper) => set({ pointerPaper }),
   setFoldOpen: (foldOpen) => set({ foldOpen }),
+  setGalleryOpen: (galleryOpen) => set({ galleryOpen }),
 }));

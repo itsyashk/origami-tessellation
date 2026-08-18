@@ -515,8 +515,8 @@ export class EditorController {
     const mod = ev.ctrlKey || ev.metaKey;
     const key = ev.key;
 
-    // While the fold preview is open it owns the keyboard (Radix handles
-    // Escape); only F toggles it back closed.
+    // While an overlay is open it owns the keyboard (Radix handles Escape);
+    // only its own toggle key closes it again.
     if (this.editor.foldOpen) {
       if (!mod && key.toLowerCase() === "f") {
         this.editor.setFoldOpen(false);
@@ -524,9 +524,21 @@ export class EditorController {
       }
       return false;
     }
+    if (this.editor.galleryOpen) {
+      if (!mod && key.toLowerCase() === "g") {
+        this.editor.setGalleryOpen(false);
+        return true;
+      }
+      return false;
+    }
     if (!mod && key.toLowerCase() === "f") {
       this.cancelGesture();
       this.editor.setFoldOpen(true);
+      return true;
+    }
+    if (!mod && key.toLowerCase() === "g") {
+      this.cancelGesture();
+      this.editor.setGalleryOpen(true);
       return true;
     }
 

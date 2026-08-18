@@ -22,6 +22,10 @@ const vertexCenter = async (page: Page, vertexId: string) => {
 
 test.describe("editor", () => {
   test.beforeEach(async ({ page }) => {
+    // Skip the first-visit gallery so editor tests start on the canvas.
+    await page.addInitScript(() =>
+      localStorage.setItem("origami.gallery.seen", "1"),
+    );
     await page.goto("/");
     await expect(page.getByTestId("editor-canvas")).toBeVisible();
   });
@@ -114,9 +118,9 @@ test.describe("editor", () => {
     test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
     await dismissOnboarding(page);
 
-    // Load the single-vertex study.
-    await page.getByTestId("menu-examples").click();
-    await page.getByTestId("example-single-vertex").click();
+    // Load the single-vertex study from the pattern library.
+    await page.getByTestId("menu-patterns").click();
+    await page.getByTestId("open-pattern-birds-foot").click();
     await expect(page.getByTestId("status-counts")).toHaveText(
       "5 vertices · 4 creases",
     );
@@ -158,8 +162,8 @@ test.describe("editor", () => {
     test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
     await dismissOnboarding(page);
 
-    await page.getByTestId("menu-examples").click();
-    await page.getByTestId("example-single-vertex").click();
+    await page.getByTestId("menu-patterns").click();
+    await page.getByTestId("open-pattern-birds-foot").click();
     await expect(page.getByTestId("status-counts")).toHaveText(
       "5 vertices · 4 creases",
     );
@@ -295,6 +299,38 @@ test.describe("editor", () => {
 
     await page.getByTestId("fold-close").click();
     await expect(page.getByTestId("fold-preview")).toBeHidden();
+  });
+
+  test("tutorial flow: browse the library and watch a tessellation fold", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    await dismissOnboarding(page);
+
+    await page.getByTestId("menu-patterns").click();
+    await expect(page.getByTestId("pattern-browser")).toBeVisible();
+
+    // Filter down to tessellations and start the Miura-ori tutorial.
+    await page.getByTestId("filter-tessellations").click();
+    await expect(page.getByTestId("pattern-miura-4x5")).toBeVisible();
+    await expect(page.getByTestId("pattern-kite-base")).toBeHidden();
+    await page.getByTestId("fold-pattern-miura-4x5").click();
+
+    // The gallery hands off to the fold preview with the pattern loaded.
+    await expect(page.getByTestId("pattern-browser")).toBeHidden();
+    await expect(page.getByTestId("fold-preview")).toBeVisible();
+    expect(await page.getByTestId("fold-face").count()).toBeGreaterThan(10);
+    await page.getByTestId("fold-close").click();
+
+    await expect(page.getByTestId("doc-name")).toHaveValue("Miura-ori 5×4");
+  });
+
+  test("first visit opens straight into the pattern library", async ({ browser }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    // Fresh context: no localStorage, so the gallery greets the user.
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto("http://localhost:3000/");
+    await expect(page.getByTestId("pattern-browser")).toBeVisible();
+    await context.close();
   });
 
   test("mobile: editor loads with touch toolbar", async ({ page }, testInfo) => {
