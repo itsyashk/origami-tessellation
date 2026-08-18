@@ -162,3 +162,36 @@ toolbar — which is what those tests are actually about.
 **Reconsider when.** Safari-specific bugs appear (pointer events, `touch-action`,
 `overscroll-behavior`, font rendering), or before shipping a public web build where
 Safari is a primary target.
+
+---
+
+### Dangling (degree-1) interior vertices are "in progress", not "invalid"
+
+**Decision.** `analyzeVertex` reports Kawasaki/Maekawa as `not-applicable` for a
+degree-1 interior vertex, and `analyzeDocument` excludes degree-<2 vertices from
+the flat-foldable tally entirely.
+
+**Reason.** A dangling crease end exists in every half-drawn pattern; flagging it
+coral mid-construction punishes the normal drawing flow and pollutes the summary
+("0/2 flat-foldable" after drawing one innocent crease). Degree ≥ 2 vertices with
+odd parity are still marked invalid — that is a real math violation.
+
+**Reconsider when.** A "strict mode" or pre-export validation pass exists; there,
+dangling ends should be reported as blockers.
+
+---
+
+### `commit()` is transaction-aware
+
+**Decision.** If a preview transaction is open when `commit(next)` runs, the
+history entry recorded is the transaction *baseline*, and the transaction closes.
+
+**Reason.** Any UI code (keyboard shortcuts, inspector, top bar) may commit while
+a drag or crease draft is in flight. Recording the transient mid-gesture document
+would let undo resurrect states that never logically existed, and leaving the
+baseline armed let a later cancel roll the whole session back. Defense in depth:
+tool switches and undo/redo also explicitly abandon gestures via `resetGesture`.
+
+**Reconsider when.** Gestures and commits ever need to interleave intentionally
+(e.g. multi-touch editing two vertices at once) — then history needs real
+transaction scopes instead of a single baseline slot.
