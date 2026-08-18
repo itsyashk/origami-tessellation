@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run e2e"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",

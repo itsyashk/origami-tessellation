@@ -215,6 +215,49 @@ export const deleteGeometry = (
   };
 };
 
+export interface SplitCreaseResult {
+  doc: OrigamiDocument;
+  vertex: Vertex;
+}
+
+/**
+ * Split a crease at a position by inserting a new vertex and replacing the
+ * crease with two halves that inherit its assignment. The position is used
+ * as given (callers snap it onto the segment first).
+ */
+export const splitCreaseAt = (
+  doc: OrigamiDocument,
+  creaseIdToSplit: string,
+  pos: Vec2,
+  newVertexId = vertexId(),
+): SplitCreaseResult => {
+  const crease = getCrease(doc, creaseIdToSplit);
+  if (!crease) throw new Error(`No crease ${creaseIdToSplit}`);
+  const vertex: Vertex = { id: newVertexId, x: pos.x, y: pos.y };
+  const halves: Crease[] = [
+    {
+      id: creaseId(),
+      startVertexId: crease.startVertexId,
+      endVertexId: vertex.id,
+      assignment: crease.assignment,
+    },
+    {
+      id: creaseId(),
+      startVertexId: vertex.id,
+      endVertexId: crease.endVertexId,
+      assignment: crease.assignment,
+    },
+  ];
+  return {
+    doc: {
+      ...doc,
+      vertices: [...doc.vertices, vertex],
+      creases: [...doc.creases.filter((c) => c.id !== creaseIdToSplit), ...halves],
+    },
+    vertex,
+  };
+};
+
 /** Rename the document. */
 export const renameDocument = (
   doc: OrigamiDocument,

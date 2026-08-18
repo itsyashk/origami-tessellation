@@ -7,7 +7,7 @@
  */
 
 import type { Vec2 } from "./vec2";
-import { distance, fromAngle, add, scale, sub, angleOf, length } from "./vec2";
+import { distance, fromAngle, add, sub, angleOf, length } from "./vec2";
 import { closestPointOnSegment } from "./segment";
 import { degToRad } from "./angles";
 import type { OrigamiDocument, Vertex } from "@/origami/model";

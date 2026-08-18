@@ -292,7 +292,7 @@ export const analyzeDocument = (doc: OrigamiDocument): DocumentAnalysis => {
       const m = analysis.maekawa.status;
       if (k === "invalid" || m === "invalid") invalidVertexCount++;
       else if (k === "near") nearVertexCount++;
-      else if (k === "valid" && m !== "invalid") validVertexCount++;
+      else if (k === "valid") validVertexCount++;
     }
   }
 

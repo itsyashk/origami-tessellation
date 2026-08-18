@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeDocument, analyzeKawasaki, analyzeMaekawa } from "./analysis";
+import { analyzeDocument, analyzeKawasaki } from "./analysis";
 import {
   addCrease,
   addVertex,
