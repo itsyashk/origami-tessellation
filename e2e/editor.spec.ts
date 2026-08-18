@@ -154,6 +154,37 @@ test.describe("editor", () => {
     );
   });
 
+  test("kawasaki snap pulls a drag onto the valid locus", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    await dismissOnboarding(page);
+
+    await page.getByTestId("menu-examples").click();
+    await page.getByTestId("example-single-vertex").click();
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "5 vertices · 4 creases",
+    );
+
+    // Drag the south-east pleat endpoint to a point just off the center
+    // vertex's valid locus (the 315° ray, a diagonal — so no axis-alignment
+    // snap can preempt the mathematical one). The solver should pull the
+    // position onto the locus and label it.
+    const start = await vertexCenter(page, "se");
+    const east = await vertexCenter(page, "east");
+    const center = await vertexCenter(page, "center");
+    const zoom = (east.x - center.x) / 100; // screen px per paper unit
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    // Paper delta (−30, +33): 2.1 units off the diagonal, inside snap range.
+    await page.mouse.move(start.x - 30 * zoom, start.y - 33 * zoom, { steps: 8 });
+    await expect(page.getByTestId("snap-layer")).toContainText("Kawasaki ✓");
+    await page.mouse.up();
+
+    // The snapped drop leaves the center vertex exactly flat-foldable.
+    const c = await vertexCenter(page, "center");
+    await page.mouse.click(c.x, c.y);
+    await expect(page.getByTestId("kawasaki-chip")).toContainText("180°");
+  });
+
   test("repeat tiles the pattern into a grid", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
     await dismissOnboarding(page);
