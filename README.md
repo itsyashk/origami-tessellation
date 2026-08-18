@@ -8,9 +8,7 @@ No "check" button. Kawasaki's and Maekawa's theorems are evaluated on every
 document change, including every frame of a drag, and the result appears next to
 the geometry it describes.
 
-> **Screenshot placeholder** — `docs/editor.png`. Generate it with
-> `node scripts/screenshot.mjs docs/editor.png 1440 900` while `npm run dev` is
-> running, then replace this block with `![Editor](docs/editor.png)`.
+![Editor — the built-in square twist with live analysis](docs/editor.png)
 
 ## Quick start
 
