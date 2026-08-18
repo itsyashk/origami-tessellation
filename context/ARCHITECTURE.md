@@ -48,6 +48,10 @@ priority order).
   affected crease ids, and a human sentence, so the same object drives badges, the
   inspector, snapping, and future tutorials.
 - `kawasakiSnap.ts` — the "snap to flat-foldable" solver.
+- `planarize.ts` — incidence-completion to fixpoint: vertices on crease
+  interiors split the crease; proper crossings gain a shared junction vertex.
+  Invoked by the editor at every commit point (crease completion, drag drop,
+  nudge, coordinate edit), never per pointer frame.
 - `tiling.ts` — motif repetition.
 - `serialization.ts` — the wire format *is* the model; `parseDocument` is the single
   entry point for untrusted input (migrate → typecheck → `validateDocument`).

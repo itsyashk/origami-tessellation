@@ -195,3 +195,25 @@ tool switches and undo/redo also explicitly abandon gestures via `resetGesture`.
 **Reconsider when.** Gestures and commits ever need to interleave intentionally
 (e.g. multi-touch editing two vertices at once) — then history needs real
 transaction scopes instead of a single baseline slot.
+
+---
+
+### Planarization runs at commit points, never per pointer frame
+
+**Decision.** `planarizeDocument` (two rules to fixpoint: a vertex on a crease's
+interior splits it; a proper crossing gets a new vertex, splitting both creases)
+runs when a gesture commits — crease completion, drag drop, arrow-key nudge,
+inspector coordinate edit — inside the same undo step as the edit. It does NOT
+run during drag previews, and JSON import stays byte-faithful.
+
+**Reason.** A crease pattern where creases cross without a shared vertex is
+physically meaningless and silently breaks vertex analysis, so the editor never
+leaves geometry in that state. But planarizing per frame would spray transient
+junction vertices while a vertex sweeps across creases; committing once on drop
+keeps dragging fluid and makes undo reverse the drag and the subdivision
+together. The incidence tolerance is 1e-4 paper units (INCIDENCE_EPSILON) —
+far below any snap radius, so only genuinely coincident geometry fuses.
+
+**Reconsider when.** Import should offer an explicit "planarize on open" step;
+and if dragging back and forth across creases litters degree-2 collinear
+pass-through vertices in practice, add a merge/simplify pass that removes them.

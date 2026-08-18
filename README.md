@@ -35,6 +35,9 @@ Other scripts: `npm run build`, `npm start`, `npm run typecheck`, `npm run lint`
   point-on-crease → grid, with screen-constant tolerances at any zoom.
 - **Assignment** — mountain / valley / unassigned, drawn with origami-diagram
   conventions (dash-dot / dashed) so meaning never depends on color alone.
+- **Planar topology** — creases auto-subdivide wherever they cross, and a
+  vertex dropped on a crease joins it; the crease graph never contains a
+  crossing without a shared vertex.
 - **Repeat** — tile a motif in a grid, merging coincident vertices.
 - **History** — one gesture is one undo step, 200 deep.
 - **Files** — built-in examples, JSON import, `.origami.json` and SVG export.

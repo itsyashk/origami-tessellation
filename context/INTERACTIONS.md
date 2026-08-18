@@ -32,7 +32,10 @@ All px constants are converted to paper units with `screenLengthToPaper(vp, px)`
   promotes to `drag-vertex`: `beginPreview()` snapshots the document, then every
   move calls `preview(moveVertex(...))` with the snapped position. No history is
   written mid-drag.
-- **Pointer up** → `commitPreview()`: one undo step covering the whole drag.
+- **Pointer up** → planarize, then `commitPreview()`: one undo step covering the
+  whole drag. If the drop leaves creases crossing (or the dragged vertex sitting
+  on a crease's interior), `planarizeDocument` subdivides at those incidences as
+  part of the same step — undo reverses the drag and the subdivision together.
 - **Hover** (no button) sets `hovered` for vertex/crease highlight.
 - Marquee selection does not exist yet.
 
@@ -62,6 +65,10 @@ Both gesture styles are supported and interchangeable:
 - A completed crease is one undo step. Duplicate creases between the same pair are
   silently ignored; a zero-length crease (same start and end vertex) is ignored and
   keeps the draft alive.
+- **Auto-subdivision** — completion runs `planarizeDocument`: the new crease and
+  every crease it crosses split at their intersection points (shared junction
+  vertices), and any loose vertex lying on its path is joined into it. All within
+  the same undo step. See the planarization entry in `DECISIONS.md`.
 - While a draft is active, angle snapping is enabled with the draft's start vertex
   as origin (15° steps, labelled e.g. "45°").
 

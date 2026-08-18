@@ -32,6 +32,7 @@ import {
   type OrigamiDocument,
 } from "@/origami/model";
 import { findKawasakiSnap } from "@/origami/kawasakiSnap";
+import { planarizeDocument } from "@/origami/planarize";
 import { hitTest } from "./hitTest";
 import { panBy, screenLengthToPaper, screenToPaper, zoomAt } from "./viewport";
 import { useDocumentStore } from "@/state/documentStore";
@@ -329,6 +330,10 @@ export class EditorController {
     }
 
     if (this.role.kind === "drag-vertex") {
+      // If the drop leaves creases crossing (or the vertex sitting on one),
+      // subdivide before the gesture commits — same undo step as the drag.
+      const planar = planarizeDocument(this.docStore.doc);
+      if (planar !== this.docStore.doc) this.docStore.preview(planar);
       this.docStore.commitPreview();
       this.editor.setDraggingVertexId(null);
       this.setSnap(null);
@@ -470,7 +475,9 @@ export class EditorController {
       return;
     }
     const withCrease = addCrease(resolved.doc, draft.startVertexId, resolved.vertexId);
-    this.docStore.preview(withCrease.doc);
+    // Auto-subdivide: the new crease and anything it crosses split at their
+    // intersection points, all within this one gesture/undo step.
+    this.docStore.preview(planarizeDocument(withCrease.doc));
     this.docStore.commitPreview();
     hapticTick();
 
@@ -562,7 +569,7 @@ export class EditorController {
         x: vertex.x + nudge[key].x * step,
         y: vertex.y + nudge[key].y * step,
       });
-      this.docStore.commit(moveVertex(doc, vertex.id, next));
+      this.docStore.commit(planarizeDocument(moveVertex(doc, vertex.id, next)));
       return true;
     }
 

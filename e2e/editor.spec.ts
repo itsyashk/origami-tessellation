@@ -185,6 +185,75 @@ test.describe("editor", () => {
     await expect(page.getByTestId("kawasaki-chip")).toContainText("180°");
   });
 
+  test("drawing across an existing crease subdivides both", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    await dismissOnboarding(page);
+
+    await page.getByTestId("menu-file").click();
+    await page.getByTestId("menu-new").click();
+    const box = (await page.getByTestId("editor-canvas").boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    await page.getByTestId("tool-crease").click();
+    // Horizontal crease…
+    await page.mouse.click(cx - 150, cy);
+    await page.mouse.click(cx + 150, cy);
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "2 vertices · 1 creases",
+    );
+    // …then a vertical one straight across it.
+    await page.mouse.click(cx, cy - 120);
+    await page.mouse.click(cx, cy + 120);
+    await page.keyboard.press("Escape");
+
+    // Both creases split at the crossing: 4 endpoints + 1 junction, 4 halves.
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "5 vertices · 4 creases",
+    );
+  });
+
+  test("dropping a dragged vertex across a crease subdivides at the crossing", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    await dismissOnboarding(page);
+
+    await page.getByTestId("menu-file").click();
+    await page.getByTestId("menu-new").click();
+    const box = (await page.getByTestId("editor-canvas").boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    await page.getByTestId("tool-crease").click();
+    // A horizontal crease and a second one parallel above it.
+    await page.mouse.click(cx - 150, cy);
+    await page.mouse.click(cx + 150, cy);
+    await page.keyboard.press("Escape");
+    await page.mouse.click(cx - 150, cy - 100);
+    await page.mouse.click(cx + 150, cy - 100);
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "4 vertices · 2 creases",
+    );
+
+    // Drag the upper crease's right endpoint far below the horizontal one,
+    // so the two creases cross. On drop, both must split at the crossing.
+    await page.getByTestId("tool-select").click();
+    await page.mouse.move(cx + 150, cy - 100);
+    await page.mouse.down();
+    await page.mouse.move(cx + 150, cy + 120, { steps: 10 });
+    await page.mouse.up();
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "5 vertices · 4 creases",
+    );
+
+    // One undo reverses the drag AND the subdivision together.
+    await page.keyboard.press("Control+z");
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "4 vertices · 2 creases",
+    );
+  });
+
   test("repeat tiles the pattern into a grid", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
     await dismissOnboarding(page);

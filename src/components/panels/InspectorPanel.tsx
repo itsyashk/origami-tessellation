@@ -15,6 +15,7 @@ import {
   vertexMap,
   type CreaseAssignment,
 } from "@/origami/model";
+import { planarizeDocument } from "@/origami/planarize";
 import { useDocumentStore } from "@/state/documentStore";
 import { useEditorStore, emptySelection } from "@/state/editorStore";
 import { useAnalysis } from "@/state/useAnalysis";
@@ -103,10 +104,12 @@ export function InspectorPanel() {
                 const value = Number(raw);
                 if (!Number.isFinite(value) || value === current) return;
                 commit(
-                  moveVertex(doc, singleVertex.id, {
-                    x: axis === "x" ? value : singleVertex.x,
-                    y: axis === "y" ? value : singleVertex.y,
-                  }),
+                  planarizeDocument(
+                    moveVertex(doc, singleVertex.id, {
+                      x: axis === "x" ? value : singleVertex.x,
+                      y: axis === "y" ? value : singleVertex.y,
+                    }),
+                  ),
                 );
               };
               return (

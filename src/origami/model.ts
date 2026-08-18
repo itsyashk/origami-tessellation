@@ -240,9 +240,48 @@ export interface SplitCreaseResult {
 }
 
 /**
- * Split a crease at a position by inserting a new vertex and replacing the
- * crease with two halves that inherit its assignment. The position is used
- * as given (callers snap it onto the segment first).
+ * Replace a crease with two halves that pass through an existing vertex,
+ * both inheriting its assignment. Halves that would duplicate an existing
+ * crease are dropped rather than doubled. The vertex's position is taken as
+ * given (callers put it on the segment first).
+ */
+export const splitCreaseWithVertex = (
+  doc: OrigamiDocument,
+  creaseIdToSplit: string,
+  throughVertexId: string,
+): OrigamiDocument => {
+  const crease = getCrease(doc, creaseIdToSplit);
+  if (!crease) throw new Error(`No crease ${creaseIdToSplit}`);
+  if (
+    throughVertexId === crease.startVertexId ||
+    throughVertexId === crease.endVertexId
+  ) {
+    return doc;
+  }
+  if (!doc.vertices.some((v) => v.id === throughVertexId)) {
+    throw new Error(`No vertex ${throughVertexId}`);
+  }
+  const remaining = doc.creases.filter((c) => c.id !== creaseIdToSplit);
+  const base: OrigamiDocument = { ...doc, creases: remaining };
+  const halves: Crease[] = [];
+  for (const [startVertexId, endVertexId] of [
+    [crease.startVertexId, throughVertexId],
+    [throughVertexId, crease.endVertexId],
+  ] as const) {
+    if (!findCreaseBetween(base, startVertexId, endVertexId)) {
+      halves.push({
+        id: creaseId(),
+        startVertexId,
+        endVertexId,
+        assignment: crease.assignment,
+      });
+    }
+  }
+  return { ...base, creases: [...remaining, ...halves] };
+};
+
+/**
+ * Split a crease at a position by inserting a new vertex there.
  */
 export const splitCreaseAt = (
   doc: OrigamiDocument,
@@ -250,29 +289,16 @@ export const splitCreaseAt = (
   pos: Vec2,
   newVertexId = vertexId(),
 ): SplitCreaseResult => {
-  const crease = getCrease(doc, creaseIdToSplit);
-  if (!crease) throw new Error(`No crease ${creaseIdToSplit}`);
+  if (!getCrease(doc, creaseIdToSplit)) {
+    throw new Error(`No crease ${creaseIdToSplit}`);
+  }
   const vertex: Vertex = { id: newVertexId, x: pos.x, y: pos.y };
-  const halves: Crease[] = [
-    {
-      id: creaseId(),
-      startVertexId: crease.startVertexId,
-      endVertexId: vertex.id,
-      assignment: crease.assignment,
-    },
-    {
-      id: creaseId(),
-      startVertexId: vertex.id,
-      endVertexId: crease.endVertexId,
-      assignment: crease.assignment,
-    },
-  ];
+  const withVertex: OrigamiDocument = {
+    ...doc,
+    vertices: [...doc.vertices, vertex],
+  };
   return {
-    doc: {
-      ...doc,
-      vertices: [...doc.vertices, vertex],
-      creases: [...doc.creases.filter((c) => c.id !== creaseIdToSplit), ...halves],
-    },
+    doc: splitCreaseWithVertex(withVertex, creaseIdToSplit, vertex.id),
     vertex,
   };
 };

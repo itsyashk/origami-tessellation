@@ -16,7 +16,7 @@ Small, well-understood pieces that remove friction before any new mathematics.
 
 | Item | Notes |
 | --- | --- |
-| Crease subdivision at intersections | Two creases may cross today without a vertex, which silently breaks analysis at the crossing. Needs `segmentIntersection` (already implemented) plus a document op that splits both creases and merges the new vertices. |
+| ~~Crease subdivision at intersections~~ | **Done.** `planarizeDocument` (`src/origami/planarize.ts`) runs at every commit point — crease completion, drag drop, nudge, coordinate edit — splitting crossings and vertex-on-crease incidences. Not yet applied to JSON import (imports are kept byte-faithful). |
 | Vertex merge on drop | Vertex snapping is disabled during drags precisely because dropping onto another vertex has no defined behavior. Define it: merge, rewire incident creases, dedupe. |
 | Marquee selection | Rubber-band rectangle in the select tool; the selection model already holds sets of both kinds. |
 | FOLD import/export | The model maps closely (`vertices_coords`, `edges_vertices`, `edges_assignment` with M/V/U/B — the `boundary` assignment exists for this). Unlocks interop with Oripa, Rabbit Ear, ORIPA-family tools. |
@@ -35,8 +35,8 @@ Small, well-understood pieces that remove friction before any new mathematics.
 - Twist-family generators (square twist, hex twist, Miura variants) parameterized
   rather than hand-drawn.
 
-Prerequisite: M2 subdivision and merge, or tiled patterns will keep producing
-crossing creases without vertices.
+Prerequisite: vertex merge on drop (subdivision is done), or tiled patterns
+will keep producing near-coincident unconnected vertices.
 
 ## M4 — Folded state (2D)
 
