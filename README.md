@@ -38,6 +38,9 @@ Other scripts: `npm run build`, `npm start`, `npm run typecheck`, `npm run lint`
 - **Planar topology** — creases auto-subdivide wherever they cross, and a
   vertex dropped on a crease joins it; the crease graph never contains a
   crossing without a shared vertex.
+- **Fold preview** (`F`) — watch the pattern fold itself in 3D and inspect the
+  flat-folded result (top view, front/back face colors). Valley creases fold
+  toward you, mountains away; unassigned creases stay flat.
 - **Repeat** — tile a motif in a grid, merging coincident vertices.
 - **History** — one gesture is one undo step, 200 deep.
 - **Files** — built-in examples, JSON import, `.origami.json` and SVG export.

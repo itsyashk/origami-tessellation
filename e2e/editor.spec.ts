@@ -264,6 +264,39 @@ test.describe("editor", () => {
     await expect(page.getByTestId("status-counts")).toContainText("48 creases");
   });
 
+  test("fold preview animates the pattern and reaches the folded state", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    await dismissOnboarding(page);
+
+    await page.getByTestId("menu-fold").click();
+    await expect(page.getByTestId("fold-preview")).toBeVisible();
+    // The square twist has 9 faces.
+    await expect(page.getByTestId("fold-face")).toHaveCount(9);
+
+    // Capture the flat geometry, jump to folded, and verify faces moved.
+    const allPoints = async () => {
+      const attrs = await page
+        .getByTestId("fold-face")
+        .evaluateAll((els) => els.map((el) => el.getAttribute("points")));
+      return attrs.sort().join(" | ");
+    };
+    await page.getByTestId("fold-flat").click();
+    const flat = await allPoints();
+    await page.getByTestId("fold-folded").click();
+    await expect(page.getByTestId("fold-canvas")).toHaveAttribute(
+      "aria-label",
+      /100 percent folded/,
+    );
+    expect(await allPoints()).not.toBe(flat);
+
+    // Top view still renders all faces.
+    await page.getByTestId("fold-topview").click();
+    await expect(page.getByTestId("fold-face")).toHaveCount(9);
+
+    await page.getByTestId("fold-close").click();
+    await expect(page.getByTestId("fold-preview")).toBeHidden();
+  });
+
   test("mobile: editor loads with touch toolbar", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile-iphone", "mobile only");
     await expect(page.getByTestId("editor-canvas")).toBeVisible();

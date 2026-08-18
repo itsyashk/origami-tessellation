@@ -515,6 +515,21 @@ export class EditorController {
     const mod = ev.ctrlKey || ev.metaKey;
     const key = ev.key;
 
+    // While the fold preview is open it owns the keyboard (Radix handles
+    // Escape); only F toggles it back closed.
+    if (this.editor.foldOpen) {
+      if (!mod && key.toLowerCase() === "f") {
+        this.editor.setFoldOpen(false);
+        return true;
+      }
+      return false;
+    }
+    if (!mod && key.toLowerCase() === "f") {
+      this.cancelGesture();
+      this.editor.setFoldOpen(true);
+      return true;
+    }
+
     if (key === " ") {
       this.spaceHeld = true;
       return false;

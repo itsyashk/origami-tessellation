@@ -14,6 +14,7 @@ import { AnalysisPanel } from "./panels/AnalysisPanel";
 import { InspectorPanel } from "./panels/InspectorPanel";
 import { CanvasStage } from "./editor/CanvasStage";
 import { OnboardingHint } from "./OnboardingHint";
+import { FoldPreview } from "./fold/FoldPreview";
 import { useEditorStore } from "@/state/editorStore";
 
 export function EditorShell() {
@@ -55,6 +56,8 @@ export function EditorShell() {
             )}
           </AnimatePresence>
         </main>
+
+        <FoldPreview />
 
         {/* Bottom toolbar — small screens */}
         <div className="craft-card absolute bottom-3 left-1/2 z-30 -translate-x-1/2 px-2 py-1 md:hidden">

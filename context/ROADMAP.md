@@ -38,20 +38,32 @@ Small, well-understood pieces that remove friction before any new mathematics.
 Prerequisite: vertex merge on drop (subdivision is done), or tiled patterns
 will keep producing near-coincident unconnected vertices.
 
-## M4 — Folded state (2D)
+## M4 — Folded state *(largely done)*
 
-- Planar face extraction from the crease graph (currently the document has no
-  faces at all).
-- Fold the pattern flat: face transforms by reflecting across creases.
-- Layer ordering where it is decidable locally; report honestly where it is not
-  (global flat-foldability is NP-hard — see `ORIGAMI_MATH.md`).
-- Side-by-side crease pattern ↔ folded preview.
+Done, in `src/origami/faces.ts` + `fold.ts` + the Fold preview overlay (`F`):
 
-## M5 — 3D preview *(speculative)*
+- ~~Planar face extraction from the crease graph~~ — half-edge traversal over
+  creases + paper boundary; slits and synthetic corners handled.
+- ~~Fold the pattern flat~~ — BFS spanning tree over faces; each hinge rotates
+  by t·π (valley +, mountain −), so t=1 is exactly the classical reflection
+  fold map. Animated 0→1 in a 3D tilted view with front/back face colors.
+- ~~Folded-result view~~ — the overlay's "Folded" + "Top view" states.
 
-Partial-fold animation and a 3D folded model. Requires a rigid-origami or
-simulation approach (angle-based folding, or a solver in the style of Origami
-Simulator); scope and feasibility to be assessed after M4 gives us faces.
+Remaining for M4:
+
+- Layer ordering where it is decidable locally; today display stacking uses a
+  BFS-depth/fold-sign heuristic and is honest about it (global flat-foldability
+  is NP-hard — see `ORIGAMI_MATH.md`).
+- Side-by-side crease pattern ↔ folded preview (currently a modal overlay).
+- Self-intersection detection in the folded state.
+
+## M5 — True rigid-origami 3D *(speculative)*
+
+The current animation rotates faces along tree hinges only, so patterns that
+are not rigidly foldable with flat panels (the square twist!) visibly separate
+at loop-closure creases mid-animation — endpoints are always consistent. A
+rigid-origami or compliant solver (Origami Simulator style) would animate the
+true folding motion with panel bending.
 
 ## M6 — Native iOS
 

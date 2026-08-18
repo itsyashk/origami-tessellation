@@ -136,6 +136,21 @@ event, and only then does the DOM layer call `preventDefault()`.
 
 ## Undo semantics
 
+### Fold preview (`F`, or the "Fold" button)
+
+A modal overlay (`src/components/fold/FoldPreview.tsx`) that animates the
+pattern folding and shows the flat-folded result:
+
+- Opens with autoplay 0→100% (~2.4s, cubic ease) unless
+  `prefers-reduced-motion` — then it opens flat with the slider only.
+- Controls: **Flat** (t=0), **Fold/Pause**, **Folded** (t=1), a scrub slider,
+  and **Top view** (straight-down look at the folded silhouette).
+- Faces respond to the slider immediately; front faces render paper-white,
+  back faces cyan (duo paper), so flips are visible.
+- Warning chips surface non-flat-foldable vertices and unassigned creases
+  (which stay flat and hold their subtree open).
+- `F` toggles; while open, the overlay owns the keyboard (Escape closes).
+
 One gesture is one undo step. Two mechanisms in `documentStore`:
 
 - `commit(next)` — immediate single-step edits (place vertex, assign, delete,

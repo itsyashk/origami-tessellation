@@ -46,6 +46,8 @@ interface EditorState {
   draggingVertexId: string | null;
   /** Pointer position in paper coordinates (for status readouts). */
   pointerPaper: Vec2 | null;
+  /** Whether the fold preview overlay is open. */
+  foldOpen: boolean;
 
   setTool: (tool: ToolId) => void;
   /** Abandon any in-flight gesture (draft/drag) and its doc transaction. */
@@ -60,6 +62,7 @@ interface EditorState {
   setActiveSnap: (snap: SnapHit | null) => void;
   setDraggingVertexId: (id: string | null) => void;
   setPointerPaper: (pos: Vec2 | null) => void;
+  setFoldOpen: (open: boolean) => void;
 }
 
 const toggle = (set: ReadonlySet<string>, id: string): Set<string> => {
@@ -78,6 +81,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   activeSnap: null,
   draggingVertexId: null,
   pointerPaper: null,
+  foldOpen: false,
 
   setTool: (tool) => {
     // Switching tools must abandon any in-flight gesture completely,
@@ -115,4 +119,5 @@ export const useEditorStore = create<EditorState>((set) => ({
   setActiveSnap: (activeSnap) => set({ activeSnap }),
   setDraggingVertexId: (draggingVertexId) => set({ draggingVertexId }),
   setPointerPaper: (pointerPaper) => set({ pointerPaper }),
+  setFoldOpen: (foldOpen) => set({ foldOpen }),
 }));

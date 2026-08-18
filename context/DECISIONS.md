@@ -217,3 +217,27 @@ far below any snap radius, so only genuinely coincident geometry fuses.
 **Reconsider when.** Import should offer an explicit "planarize on open" step;
 and if dragging back and forth across creases litters degree-2 collinear
 pass-through vertices in practice, add a merge/simplify pass that removes them.
+
+---
+
+### Fold preview: spanning-tree kinematics, not a rigid-origami solver
+
+**Decision.** The Fold preview animates by rotating each face about its BFS-tree
+hinge crease by t·π (valley toward +z, mountain away), composed down the tree in
+crease-pattern coordinates (`src/origami/fold.ts` over faces from `faces.ts`).
+At t=1 this is exactly the classical flat-fold map (reflection composition), so
+the folded endpoint is mathematically correct for locally flat-foldable input.
+Display stacking uses a BFS-depth + cumulative-fold-sign heuristic. Rendering is
+plain SVG polygons with painter sorting, Newell-normal shading, and duo-paper
+coloring (front paper-white, back cyan).
+
+**Reason.** A real rigid-origami or compliant solver is a project in itself, and
+many patterns (the square twist, famously) are not rigidly foldable with flat
+panels at all — mid-animation "tearing" at loop-closure creases is inherent to
+any panel-rigid preview of them, while the flat and fully-folded endpoints are
+always consistent. The tree-kinematic approach is a few hundred lines, fully
+testable, and reads clearly as folding.
+
+**Reconsider when.** M5: a solver in the style of Origami Simulator for true
+folding motion; and proper layer ordering when we tackle the folded-state
+milestone remainder.

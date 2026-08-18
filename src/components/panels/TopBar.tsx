@@ -13,6 +13,7 @@ import {
   FolderOpen,
   Keyboard,
   ChevronDown,
+  Layers,
 } from "lucide-react";
 import { EXAMPLES } from "@/origami/examples";
 import { parseDocument } from "@/origami/serialization";
@@ -48,6 +49,7 @@ export function TopBar() {
   const newDocument = useDocumentStore((s) => s.newDocument);
   const clearSelection = useEditorStore((s) => s.clearSelection);
   const resetGesture = useEditorStore((s) => s.resetGesture);
+  const setFoldOpen = useEditorStore((s) => s.setFoldOpen);
 
   const [rows, setRows] = useState(2);
   const [cols, setCols] = useState(2);
@@ -254,6 +256,18 @@ export function TopBar() {
         </Popover.Portal>
       </Popover.Root>
 
+      {/* Fold preview */}
+      <button
+        type="button"
+        className="btn btn-ghost"
+        data-testid="menu-fold"
+        onClick={() => setFoldOpen(true)}
+        title="Fold preview (F)"
+      >
+        <Layers size={15} />
+        <span className="hidden md:inline">Fold</span>
+      </button>
+
       <div className="flex-1" />
 
       {/* Undo / redo */}
@@ -305,6 +319,7 @@ export function TopBar() {
             <ShortcutRow keys={["P"]} label="Place vertices" />
             <ShortcutRow keys={["C"]} label="Draw creases" />
             <ShortcutRow keys={["H"]} label="Pan" />
+            <ShortcutRow keys={["F"]} label="Fold preview" />
             <ShortcutRow keys={["1", "2", "3"]} label="Mountain / valley / clear" />
             <ShortcutRow keys={["Ctrl", "Z"]} label="Undo" />
             <ShortcutRow keys={["Ctrl", "⇧", "Z"]} label="Redo" />
