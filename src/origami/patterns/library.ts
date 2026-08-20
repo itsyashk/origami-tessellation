@@ -6,6 +6,7 @@
  */
 
 import type { OrigamiDocument } from "../model";
+import type { FoldSimOptions } from "../foldSim";
 import {
   bookFold,
   gateFold,
@@ -37,6 +38,12 @@ export interface PatternEntry {
   difficulty: PatternDifficulty;
   description: string;
   build: () => OrigamiDocument;
+  /**
+   * Fold-simulation overrides for patterns whose folding path needs
+   * different guidance than the defaults (see foldSim.ts). Keyed off the
+   * document name at runtime via `simOptionsForDocName`.
+   */
+  simOptions?: FoldSimOptions;
 }
 
 export const CATEGORY_LABELS: Record<PatternCategory, string> = {
@@ -89,6 +96,10 @@ export const PATTERNS: PatternEntry[] = [
     description:
       "A rabbit ear on each side of the diagonal. Its two incenter vertices are perfect for studying Kawasaki's theorem.",
     build: fishBase,
+    // The rabbit-ear collapse jams under torque-only driving; its analytic
+    // map is trustworthy throughout (only two loop closures), so keep the
+    // guide always on and skip the endgame press.
+    simOptions: { guidePhaseFn: () => 1, pressBoost: 0 },
   },
   {
     slug: "waterbomb-base",
@@ -107,6 +118,7 @@ export const PATTERNS: PatternEntry[] = [
     description:
       "The waterbomb base inside-out; the starting point of the crane.",
     build: preliminaryBase,
+    simOptions: { guidePhaseFn: () => 1, pressBoost: 0 },
   },
 
   // ----------------------------------------------------------- pleats
@@ -265,14 +277,24 @@ export const PATTERNS: PatternEntry[] = [
     description:
       "The waterbomb tessellation: rows of degree-6 waterbomb vertices. Curl it into spheres and lanterns.",
     build: () => waterbombTessellation(4, 6),
+    // Small triangular panels: keep them stiff so the corrugation stays
+    // orderly, and stop at deep corrugation — the waterbomb tessellation's
+    // true fully-folded form curls into a 3D tube, and driving toward a
+    // flat stack just crumples it. Corrugated IS its folded state.
+    // Stiff small panels keep the corrugation orderly; a moderate cap lets
+    // the sheet curl into its true tube form without cell snap-through.
+    simOptions: { facetStiffness: 0.6, cap: 0.45, pressBoost: 0 },
   },
   {
-    slug: "magic-ball-6x9",
-    title: "Magic Ball 9×6",
+    slug: "magic-ball-5x8",
+    title: "Magic Ball 8×5",
     category: "tessellations",
     difficulty: "advanced",
     description: "A finer waterbomb field for smoother curvature.",
-    build: () => waterbombTessellation(6, 9, "Magic Ball 9×6"),
+    build: () => waterbombTessellation(5, 8, "Magic Ball 8×5"),
+    // Stiff small panels keep the corrugation orderly; a moderate cap lets
+    // the sheet curl into its true tube form without cell snap-through.
+    simOptions: { facetStiffness: 0.6, cap: 0.45, pressBoost: 0 },
   },
   {
     slug: "weave-8",
@@ -286,3 +308,11 @@ export const PATTERNS: PatternEntry[] = [
 
 export const getPattern = (slug: string): PatternEntry | undefined =>
   PATTERNS.find((p) => p.slug === slug);
+
+/**
+ * Simulation overrides for a document by name. Library documents keep their
+ * generator's name, so this is how the fold preview finds a pattern's
+ * tuning; hand-drawn documents get the defaults.
+ */
+export const simOptionsForDocName = (name: string): FoldSimOptions | undefined =>
+  PATTERNS.find((p) => p.build().name === name)?.simOptions;

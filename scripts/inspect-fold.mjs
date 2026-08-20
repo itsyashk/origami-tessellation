@@ -9,11 +9,11 @@ const errors = [];
 page.on("pageerror", (err) => errors.push(String(err)));
 page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 
+await page.addInitScript(() => {
+  localStorage.setItem("origami.gallery.seen", "1");
+  localStorage.setItem("origami.onboarding.dismissed", "1");
+});
 await page.goto("http://localhost:3000", { waitUntil: "networkidle" });
-const hint = page.getByTestId("onboarding-hint");
-if (await hint.isVisible().catch(() => false)) {
-  await hint.getByRole("button", { name: "Dismiss hint" }).click();
-}
 
 await page.getByTestId("menu-fold").click();
 await page.getByTestId("fold-preview").waitFor();

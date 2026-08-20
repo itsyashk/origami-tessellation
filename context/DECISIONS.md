@@ -241,3 +241,38 @@ testable, and reads clearly as folding.
 **Reconsider when.** M5: a solver in the style of Origami Simulator for true
 folding motion; and proper layer ordering when we tackle the folded-state
 milestone remainder.
+
+---
+
+### Fold animation is a physical simulation, not kinematics
+
+**Decision.** `src/origami/foldSim.ts` replaces the per-face kinematic
+transforms in the fold preview. The sheet is triangulated (every face fanned
+around its centroid so panels can bend); PBD projection keeps bars
+inextensible (paper cannot stretch or tear — the mesh is connected by
+construction); crease hinges drive dihedral angles toward t·π·cap with
+angle-unwrapping across the ±π seam and an "endgame press"; soft facet hinges
+provide paper-like bending; drift is removed by rigidly re-anchoring the root
+face (hard pins blocked legitimate fold paths); and a weak "guide" force pulls
+toward the analytic fold map — full-strength for tree face-graphs (where the
+map is exact at every t), endgame-only otherwise, weighted per node by how
+much the map's face images agree (trust fades where the analytic map tears).
+
+**Reason.** The kinematic preview visibly tore at loop-closure creases —
+mid-fold separation on every multi-vertex pattern. A connected mesh makes
+tearing structurally impossible, and bending appears exactly where real paper
+bends (twists!). Validated per pattern in `foldSim.test.ts`: strain ≤ 10%,
+no explosion, family-specific fold-progress and flatness targets; plus
+screenshot review of the animation.
+
+**Hard-won details.** The analytic guide's parameter is a fraction of a FULL
+fold, so capped drives must request `t·cap` from the map — passing raw `t`
+drags shallow folds toward the flat stack and crumples them (this one bug
+masqueraded as several "physics" failures). Waterbomb tessellations do not
+press flat; they curl into their tube form — capping their drive at deep
+corrugation is the realistic presentation, not a workaround. Patterns can
+carry `simOptions` overrides in the library for exactly such physics.
+
+**Reconsider when.** A GPU solver (Origami Simulator style) or collision
+handling is wanted; or hidden-line rendering replaces the faint overlay
+crease lines.

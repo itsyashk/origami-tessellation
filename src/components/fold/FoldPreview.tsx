@@ -1,21 +1,23 @@
 "use client";
 
 /**
- * Fold preview: an overlay that animates the crease pattern folding in 3D
- * and shows the final flat-folded result.
+ * Fold preview: a physically simulated folding animation and the folded
+ * result.
  *
- * All fold mathematics lives in `src/origami/fold.ts`; this component only
- * projects the transformed faces, shades them (front = paper, back = cyan,
- * classic duo paper), painter-sorts them, and drives the timeline. Faces
- * respond instantly to the slider; only the Play button animates, and it
- * never autoplays under prefers-reduced-motion.
+ * The paper is a triangulated mass-spring mesh (`src/origami/foldSim.ts`):
+ * connected by construction, so it can never tear; inextensible bars keep it
+ * from stretching; hinge torques drive creases toward the slider's fold
+ * fraction while facet hinges let it bend the way real paper bends on
+ * non-rigid patterns (twists). This component only steps the sim each frame
+ * and draws the triangles.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Slider from "@radix-ui/react-slider";
 import { Pause, Play, TriangleAlert, X } from "lucide-react";
-import { buildFoldModel, foldedFaceTransforms } from "@/origami/fold";
+import { buildFoldSim } from "@/origami/foldSim";
+import { simOptionsForDocName } from "@/origami/patterns/library";
 import {
   applyMat,
   multiplyMat,
@@ -34,37 +36,24 @@ const BACK = { r: 0xbc, g: 0xe2, b: 0xec };
 const INK = { r: 0x2b, g: 0x2a, b: 0x28 };
 const LIGHT = normalize3({ x: 0.35, y: 0.45, z: 0.82 });
 
+/** Simulation substeps per animation frame. */
+const STEPS_PER_FRAME = 14;
+/** Play duration for the full fold, ms. */
+const PLAY_MS = 3200;
+
 function normalize3(v: Vec3): Vec3 {
   const len = Math.hypot(v.x, v.y, v.z) || 1;
   return { x: v.x / len, y: v.y / len, z: v.z / len };
 }
 
-/** Newell normal of a 3D polygon. */
-const polygonNormal = (points: Vec3[]): Vec3 => {
-  let x = 0;
-  let y = 0;
-  let z = 0;
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    const q = points[(i + 1) % points.length];
-    x += (p.y - q.y) * (p.z + q.z);
-    y += (p.z - q.z) * (p.x + q.x);
-    z += (p.x - q.x) * (p.y + q.y);
-  }
-  return normalize3({ x, y, z });
-};
-
 const shade = (
   base: { r: number; g: number; b: number },
   lambert: number,
 ): string => {
-  const k = 0.72 + 0.28 * lambert;
+  const k = 0.7 + 0.3 * lambert;
   const mix = (c: number, ink: number) => Math.round(ink + (c - ink) * k);
   return `rgb(${mix(base.r, INK.r)}, ${mix(base.g, INK.g)}, ${mix(base.b, INK.b)})`;
 };
-
-const easeInOutCubic = (t: number): number =>
-  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
 export function FoldPreview() {
   const open = useEditorStore((s) => s.foldOpen);
@@ -82,9 +71,13 @@ function FoldPreviewContent({
 }) {
   const doc = useDocumentStore((s) => s.doc);
   const analysis = useAnalysis();
-  const model = useMemo(() => buildFoldModel(doc), [doc]);
+  const sim = useMemo(
+    () => buildFoldSim(doc, simOptionsForDocName(doc.name)),
+    [doc],
+  );
 
   const [t, setT] = useState(0);
+  const tRef = useRef(0);
   // Autoplay on open unless the user prefers reduced motion. This only
   // renders client-side (the dialog opens on interaction), so reading
   // matchMedia in the initializer is safe.
@@ -92,39 +85,48 @@ function FoldPreviewContent({
     () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
   const [topView, setTopView] = useState(false);
-  const rafRef = useRef(0);
-  const lastTimeRef = useRef(0);
+  const [, setFrame] = useState(0);
 
+  const setFold = (value: number, fastForward = false) => {
+    const from = tRef.current;
+    tRef.current = value;
+    setT(value);
+    // Jumping the target far in one go can jam non-rigid patterns in a bent
+    // local minimum; ramp quasi-statically instead.
+    if (fastForward) sim.rampTo(from, value);
+  };
+
+  // The simulation heartbeat: advance the fold fraction while playing and
+  // step the physics every frame (it also settles after scrubbing stops).
   useEffect(() => {
-    if (!playing) return;
-    lastTimeRef.current = performance.now();
+    let raf = 0;
+    let last = performance.now();
     const tick = (now: number) => {
-      const dt = now - lastTimeRef.current;
-      lastTimeRef.current = now;
-      setT((prev) => {
-        const next = prev + dt / 2400;
-        if (next >= 1) {
-          setPlaying(false);
-          return 1;
+      const dt = now - last;
+      last = now;
+      setPlaying((isPlaying) => {
+        if (isPlaying) {
+          tRef.current = Math.min(1, tRef.current + dt / PLAY_MS);
+          setT(tRef.current);
+          if (tRef.current >= 1) return false;
         }
-        return next;
+        return isPlaying;
       });
-      rafRef.current = requestAnimationFrame(tick);
+      sim.step(tRef.current, STEPS_PER_FRAME);
+      setFrame((f) => f + 1);
+      raf = requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [playing]);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [sim]);
 
   const view: Mat34 = useMemo(
     () =>
-      topView
-        ? MAT_IDENTITY
-        : multiplyMat(rotationX(-1.05), rotationZ(-0.4)),
+      topView ? MAT_IDENTITY : multiplyMat(rotationX(-1.05), rotationZ(-0.4)),
     [topView],
   );
 
-  // Fixed framing: the flat sheet's projected bounds plus generous margin,
-  // so the animation never causes the camera to jump.
+  // Fixed framing from the flat sheet so the camera never jumps.
   const viewBox = useMemo(() => {
     const { width: w, height: h } = doc.paper;
     const corners = [
@@ -135,39 +137,67 @@ function FoldPreviewContent({
     ].map((p) => applyMat(view, p));
     const xs = corners.map((p) => p.x);
     const ys = corners.map((p) => -p.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    const margin = 0.3 * Math.max(w, h);
-    return `${minX - margin} ${minY - margin} ${maxX - minX + 2 * margin} ${maxY - minY + 2 * margin}`;
+    const margin = 0.32 * Math.max(w, h);
+    return `${Math.min(...xs) - margin} ${Math.min(...ys) - margin} ${
+      Math.max(...xs) - Math.min(...xs) + 2 * margin
+    } ${Math.max(...ys) - Math.min(...ys) + 2 * margin}`;
   }, [doc.paper, view]);
 
-  const rendered = useMemo(() => {
-    if (model.graph.faces.length === 0) return [];
-    const transforms = foldedFaceTransforms(model, easeInOutCubic(t));
-    const polys = model.graph.faces.map((face, i) => {
-      const points = face.polygon.map((p) =>
-        applyMat(view, applyMat(transforms[i], { x: p.x, y: p.y, z: 0 })),
-      );
-      const normal = polygonNormal(points);
-      const lambert = Math.abs(
-        normal.x * LIGHT.x + normal.y * LIGHT.y + normal.z * LIGHT.z,
-      );
-      const avgZ =
-        points.reduce((sum, p) => sum + p.z, 0) / Math.max(1, points.length);
-      return {
-        key: i,
-        attr: points.map((p) => `${p.x.toFixed(2)},${(-p.y).toFixed(2)}`).join(" "),
-        fill: shade(normal.z >= 0 ? FRONT : BACK, lambert),
-        // Painter sort: view depth, with the stacking hint breaking the tie
-        // once everything is coplanar again.
-        sortKey: avgZ + model.layers[i] * 0.15,
-      };
-    });
-    polys.sort((a, b) => a.sortKey - b.sortKey);
-    return polys;
-  }, [model, t, view]);
+  // Project the mesh: triangles shaded and painter-sorted, then crease and
+  // boundary edges drawn from the same node positions. Computed every
+  // render — the frame counter re-renders per simulation step by design.
+  const { trianglePolys, edgeLines } = (() => {
+    const { positions, triangles } = sim;
+    const projected: Vec3[] = new Array(sim.nodeCount);
+    for (let n = 0; n < sim.nodeCount; n++) {
+      projected[n] = applyMat(view, {
+        x: positions[n * 3],
+        y: positions[n * 3 + 1],
+        z: positions[n * 3 + 2],
+      });
+    }
+    const polys: { key: number; attr: string; fill: string; z: number }[] = [];
+    for (let ti = 0; ti < triangles.length / 3; ti++) {
+      const a = projected[triangles[ti * 3]];
+      const b = projected[triangles[ti * 3 + 1]];
+      const c = projected[triangles[ti * 3 + 2]];
+      // Triangle normal in view space.
+      const ux = b.x - a.x;
+      const uy = b.y - a.y;
+      const uz = b.z - a.z;
+      const vx = c.x - a.x;
+      const vy = c.y - a.y;
+      const vz = c.z - a.z;
+      let nx = uy * vz - uz * vy;
+      let ny = uz * vx - ux * vz;
+      let nz = ux * vy - uy * vx;
+      const nlen = Math.hypot(nx, ny, nz) || 1e-9;
+      nx /= nlen;
+      ny /= nlen;
+      nz /= nlen;
+      const lambert = Math.abs(nx * LIGHT.x + ny * LIGHT.y + nz * LIGHT.z);
+      polys.push({
+        key: ti,
+        attr: `${a.x.toFixed(2)},${(-a.y).toFixed(2)} ${b.x.toFixed(2)},${(-b.y).toFixed(2)} ${c.x.toFixed(2)},${(-c.y).toFixed(2)}`,
+        fill: shade(nz >= 0 ? FRONT : BACK, lambert),
+        z: (a.z + b.z + c.z) / 3,
+      });
+    }
+    polys.sort((p, q) => p.z - q.z);
+
+    const lines: { key: string; x1: number; y1: number; x2: number; y2: number; boundary: boolean }[] = [];
+    for (const edge of sim.boundaryEdges) {
+      const a = projected[edge.a];
+      const b = projected[edge.b];
+      lines.push({ key: `b${edge.a}-${edge.b}`, x1: a.x, y1: -a.y, x2: b.x, y2: -b.y, boundary: true });
+    }
+    for (const edge of sim.creaseEdges) {
+      const a = projected[edge.a];
+      const b = projected[edge.b];
+      lines.push({ key: `c${edge.a}-${edge.b}`, x1: a.x, y1: -a.y, x2: b.x, y2: -b.y, boundary: false });
+    }
+    return { trianglePolys: polys, edgeLines: lines };
+  })();
 
   const hasCreases = doc.creases.length > 0;
   const invalidCount = analysis.invalidVertexCount + analysis.nearVertexCount;
@@ -190,14 +220,20 @@ function FoldPreviewContent({
             </Dialog.Title>
             <div className="flex-1" />
             {invalidCount > 0 && (
-              <span className="chip chip-invalid" title="Kawasaki/Maekawa violations — the folded form may self-intersect">
+              <span
+                className="chip chip-invalid"
+                title="Kawasaki/Maekawa violations — the folded form may not lie flat"
+              >
                 <TriangleAlert size={13} strokeWidth={2.5} />
                 {invalidCount} vertex{invalidCount === 1 ? "" : "es"} not flat-foldable
               </span>
             )}
-            {model.unassignedHingeCount > 0 && (
-              <span className="chip chip-near" title="Unassigned creases don't fold — assign mountain or valley">
-                {model.unassignedHingeCount} unassigned stay flat
+            {sim.model.unassignedHingeCount > 0 && (
+              <span
+                className="chip chip-near"
+                title="Unassigned creases don't fold — assign mountain or valley"
+              >
+                {sim.model.unassignedHingeCount} unassigned stay flat
               </span>
             )}
             <Dialog.Close asChild>
@@ -221,15 +257,31 @@ function FoldPreviewContent({
                 role="img"
                 aria-label={`Folding preview at ${Math.round(t * 100)} percent folded`}
               >
-                {rendered.map((poly) => (
+                {trianglePolys.map((poly) => (
                   <polygon
                     key={poly.key}
                     data-testid="fold-face"
                     points={poly.attr}
                     fill={poly.fill}
-                    stroke="#2b2a28"
-                    strokeWidth={0.8}
+                    stroke={poly.fill}
+                    strokeWidth={0.5}
                     strokeLinejoin="round"
+                  />
+                ))}
+                {edgeLines.map((line) => (
+                  <line
+                    key={line.key}
+                    x1={line.x1}
+                    y1={line.y1}
+                    x2={line.x2}
+                    y2={line.y2}
+                    stroke="#2b2a28"
+                    strokeWidth={line.boundary ? 1.3 : 0.6}
+                    strokeLinecap="round"
+                    // Lines are drawn over the whole mesh (no hidden-line
+                    // removal in SVG); keep them faint so occluded creases
+                    // read as texture, not wireframe.
+                    opacity={line.boundary ? 0.75 : 0.3}
                   />
                 ))}
               </svg>
@@ -249,7 +301,7 @@ function FoldPreviewContent({
               data-testid="fold-flat"
               onClick={() => {
                 setPlaying(false);
-                setT(0);
+                setFold(0);
               }}
             >
               Flat
@@ -262,7 +314,10 @@ function FoldPreviewContent({
                 if (playing) {
                   setPlaying(false);
                 } else {
-                  if (t >= 1) setT(0);
+                  if (tRef.current >= 1) {
+                    sim.reset();
+                    setFold(0);
+                  }
                   setPlaying(true);
                 }
               }}
@@ -277,7 +332,7 @@ function FoldPreviewContent({
               data-testid="fold-folded"
               onClick={() => {
                 setPlaying(false);
-                setT(1);
+                setFold(1, true);
               }}
             >
               Folded
@@ -291,7 +346,9 @@ function FoldPreviewContent({
               value={[t]}
               onValueChange={([value]) => {
                 setPlaying(false);
-                setT(value);
+                // A click far along the track is a jump; ramp it. Drags
+                // arrive as small increments and stay fully live.
+                setFold(value, Math.abs(value - tRef.current) > 0.15);
               }}
               aria-label="Fold amount"
               data-testid="fold-slider"
@@ -312,7 +369,11 @@ function FoldPreviewContent({
               data-testid="fold-topview"
               aria-pressed={topView}
               onClick={() => setTopView((v) => !v)}
-              style={topView ? { borderColor: "var(--cyan)", background: "var(--cyan-soft)" } : undefined}
+              style={
+                topView
+                  ? { borderColor: "var(--cyan)", background: "var(--cyan-soft)" }
+                  : undefined
+              }
             >
               Top view
             </button>
