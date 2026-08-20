@@ -28,23 +28,23 @@ Other scripts: `npm run build`, `npm start`, `npm run typecheck`, `npm run lint`
 
 ## What it does today
 
-- **Tools** — select, place vertex, draw crease, pan (`V` `P` `C` `H`).
-- **Live analysis** — per-vertex Kawasaki (signed residual in degrees) and Maekawa
-  (M − V = ±2, with a satisfiability check while creases are still unassigned).
-- **Snapping** — existing vertex → Kawasaki locus → 15° angle → axis alignment →
-  point-on-crease → grid, with screen-constant tolerances at any zoom.
+- **Tools** — select (marquee, Ctrl+A), place vertex, draw crease, pan (`V` `P` `C` `H`).
+- **Live analysis** — per-vertex Kawasaki (signed residual in degrees), Maekawa
+  (M − V = ±2, with a satisfiability check while creases are still unassigned),
+  big-little-big, and degree-4 local layer order.
+- **Snapping** — existing vertex (merge on drop) → Kawasaki locus → 15° angle →
+  axis alignment → point-on-crease → grid, with screen-constant tolerances at any zoom.
 - **Assignment** — mountain / valley / unassigned, drawn with origami-diagram
   conventions (dash-dot / dashed) so meaning never depends on color alone.
-- **Planar topology** — creases auto-subdivide wherever they cross, and a
-  vertex dropped on a crease joins it; the crease graph never contains a
-  crossing without a shared vertex.
-- **Fold preview** (`F`) — a physical mass-spring simulation folds the paper
-  in 3D: the sheet is connected (it cannot tear), inextensible, and bends
-  where real paper bends. Valleys fold toward you, mountains away; unassigned
-  creases stay flat. Scrub the timeline or watch it fold itself.
+  The inspector can apply a Maekawa + big-little-big suggestion.
+- **Planar topology** — creases auto-subdivide wherever they cross, a vertex
+  dropped on a crease joins it, and dropping a vertex onto another merges them.
+- **Fold preview** (`F`) — side-by-side crease pattern and a physical mass-spring
+  fold. Stacking is a display heuristic, not a global foldability proof.
 - **Repeat** — tile a motif in a grid, merging coincident vertices.
 - **History** — one gesture is one undo step, 200 deep.
-- **Files** — built-in examples, JSON import, `.origami.json` and SVG export.
+- **Files** — pattern library, JSON and FOLD import (planarized on open),
+  `.origami.json`, `.fold`, and SVG export (with a mountain/valley legend).
 
 ## Architecture sketch
 
@@ -86,7 +86,7 @@ Product memory lives in [`context/`](context/):
 - Zustand for state · Radix UI primitives (headless, styled locally) · lucide-react
   icons · `motion` for chrome transitions
 - Nunito + Caveat via `next/font/google`
-- Vitest + Testing Library · Playwright (desktop Chromium + iPhone metrics)
+- Vitest + Testing Library · Playwright (desktop Chromium, installed Edge smoke, iPhone metrics)
 
 ## License
 

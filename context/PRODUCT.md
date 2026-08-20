@@ -15,8 +15,8 @@ DRAW ──► ANALYZE ──► FEEDBACK ──► SNAP / SUGGEST ──► DRA
 Every pointer move through this loop runs synchronously, outside React
 (`src/editor/controller.ts` → engines → Zustand → SVG layers).
 
-- **Draw** — place a vertex, draw a crease, drag a vertex, assign mountain/valley.
-- **Analyze** — `analyzeDocument()` recomputes Kawasaki and Maekawa for every vertex
+- **Draw** — place a vertex, draw a crease, drag a vertex, marquee-select, assign mountain/valley.
+- **Analyze** — `analyzeDocument()` recomputes Kawasaki, Maekawa, and big-little-big for every vertex
   on every document change, including each mid-drag frame (`src/origami/analysis.ts`).
 - **Feedback** — vertex rings recolor, badges appear beside the offending vertex
   ("Kawasaki · 2.1° off"), the analysis chip updates ("3/4 flat-foldable").
@@ -33,17 +33,18 @@ malformed imported file.
 
 | Area | Shipped |
 | --- | --- |
-| Tools | Select (V), Vertex (P), Crease (C), Pan (H) |
+| Tools | Select (V), Vertex (P), Crease (C), Pan (H); marquee on empty drag; Ctrl+A select all |
 | Drawing | Click-place vertices; click-click **and** press-drag creases with chaining; clicking a crease with the vertex tool splits it |
-| Editing | Drag vertices with live analysis; numeric X/Y in the inspector; delete selection |
-| Analysis | Per-vertex Kawasaki (signed residual in degrees) and Maekawa (M−V, incl. partial-assignment satisfiability); document roll-up counts |
-| Snapping | Existing vertex → Kawasaki locus → 15° angle ray → axis alignment → point-on-crease → 10-unit grid |
-| Assignment | Mountain / valley / unassigned via inspector or keys `1` `2` `3`; `boundary` exists in the model for FOLD compatibility |
+| Editing | Drag vertices with live analysis; drop onto another vertex to merge; numeric X/Y in the inspector; arrow-key nudge; delete selection |
+| Analysis | Per-vertex Kawasaki (signed residual in degrees), Maekawa (M−V, incl. partial-assignment satisfiability), big-little-big, degree-4 local layer order; document roll-up counts |
+| Snapping | Existing vertex (merge on drop) → Kawasaki locus → 15° angle ray → axis alignment → point-on-crease → 10-unit grid |
+| Assignment | Mountain / valley / unassigned via inspector or keys `1` `2` `3`; `boundary` exists in the model for FOLD compatibility; inspector can apply Maekawa/BLB suggestions |
 | Tessellation | "Repeat" tiles the selection (or whole pattern) in a rows × columns grid, merging coincident vertices and growing the paper |
 | History | Snapshot undo/redo, 200 steps; one gesture = one step |
-| Files | Built-in examples (Square Twist, Single Vertex Study), JSON import, `.origami.json` and `.svg` export |
+| Files | Built-in pattern library, JSON and FOLD import (planarized on open), `.origami.json`, `.fold`, and `.svg` export |
 | Viewport | Wheel zoom at cursor, pinch, middle/space drag pan, fit-to-paper, zoom readout |
 | Platform | Responsive desktop + touch layout; onboarding hint; keyboard shortcut sheet |
+| Fold preview | `F` opens a side-by-side crease pattern ↔ simulated fold; stacking is labeled as a heuristic |
 
 Opening the app loads the Square Twist rather than a blank sheet — there is
 something to drag, and analysis is visibly alive, in the first second.
@@ -56,12 +57,11 @@ Roughly in the order they become interesting (see `ROADMAP.md` for milestones):
   rather than today's bounding-box repeat.
 - **Symmetry tools** — mirror/rotational construction where one edit updates all
   symmetric copies.
-- **Flat-foldability solving** — beyond local conditions: big-little-big, layer
-  ordering, self-intersection; suggest edits that make a pattern foldable.
+- **Global flat-foldability** — beyond local Kawasaki / Maekawa / big-little-big:
+  self-intersection in the folded state; suggest edits that make a pattern foldable.
 - **Inverse design** — describe a target shape, get a crease pattern.
-- **Folded preview** — 2D folded state first, then a 3D folded model.
 - **Generated folding tutorials** — step sequences derived from the pattern.
-- **More formats** — FOLD import/export (the model is already shaped for it), PDF.
+- **More formats** — PDF print export.
 - **Native iPhone app** — see `IOS.md`; the model and engines are written to port.
 
 ## Feel

@@ -10,19 +10,19 @@ Kawasaki + Maekawa, the snapping stack including the Kawasaki-locus snap,
 mountain/valley assignment, motif repeat, snapshot undo/redo, examples, JSON
 import, SVG/JSON export, responsive desktop + touch layout.
 
-## M2 — Editor completeness
+## M2 — Editor completeness (done)
 
 Small, well-understood pieces that remove friction before any new mathematics.
 
 | Item | Notes |
 | --- | --- |
-| ~~Crease subdivision at intersections~~ | **Done.** `planarizeDocument` (`src/origami/planarize.ts`) runs at every commit point — crease completion, drag drop, nudge, coordinate edit — splitting crossings and vertex-on-crease incidences. Not yet applied to JSON import (imports are kept byte-faithful). |
-| Vertex merge on drop | Vertex snapping is disabled during drags precisely because dropping onto another vertex has no defined behavior. Define it: merge, rewire incident creases, dedupe. |
-| Marquee selection | Rubber-band rectangle in the select tool; the selection model already holds sets of both kinds. |
-| FOLD import/export | The model maps closely (`vertices_coords`, `edges_vertices`, `edges_assignment` with M/V/U/B — the `boundary` assignment exists for this). Unlocks interop with Oripa, Rabbit Ear, ORIPA-family tools. |
-| Big-little-big check | A third local condition alongside Kawasaki and Maekawa; same result shape, same badge/inspector plumbing. |
-| Local layer-order check | Per-vertex layer consistency for degree-4 vertices; a real step toward foldability beyond angle counting. |
-| Auto-assignment suggestions | Given a Kawasaki-valid vertex, propose assignments satisfying Maekawa + big-little-big. |
+| ~~Crease subdivision at intersections~~ | **Done.** `planarizeDocument` (`src/origami/planarize.ts`) runs at every commit point — crease completion, drag drop, nudge, coordinate edit — splitting crossings and vertex-on-crease incidences. Also applied on JSON/FOLD import (see DECISIONS.md). |
+| ~~Vertex merge on drop~~ | **Done.** Dragging a vertex snaps onto others; drop absorbs the dragged vertex into the target, rewires creases, drops the joining self-loop, and collapses duplicate edges. |
+| ~~Marquee selection~~ | **Done.** Rubber-band in the select tool; vertices inside the paper AABB, creases whose both endpoints are inside. Shift adds. Ctrl+A selects all. |
+| ~~FOLD import/export~~ | **Done.** `src/origami/foldFormat.ts` maps `vertices_coords` / `edges_vertices` / `edges_assignment` (M/V/U/B). File menu Open accepts `.fold`; Export FOLD writes one. |
+| ~~Big-little-big check~~ | **Done.** Third local condition; same badge/inspector plumbing. Classic local-min sectors only (equal-angle runs not generalized). |
+| ~~Local layer-order check~~ | **Done** for degree-4 vertices with a unique smallest sector. Global layer ordering remains NP-hard and is not claimed. |
+| ~~Auto-assignment suggestions~~ | **Done.** Kawasaki-valid vertices with unassigned creases get Maekawa+BLB completions in the inspector ("Assign 3M / 1V"). |
 
 ## M3 — Symmetry and true tessellations
 
@@ -35,8 +35,11 @@ Small, well-understood pieces that remove friction before any new mathematics.
 - Twist-family generators (square twist, hex twist, Miura variants) parameterized
   rather than hand-drawn.
 
-Prerequisite: vertex merge on drop (subdivision is done), or tiled patterns
-will keep producing near-coincident unconnected vertices.
+Prerequisite: vertex merge on drop is done, so tiled patterns can fuse
+coincident vertices instead of leaving unconnected stacks. Remaining for a
+true tessellation primitive: unit-cell edge-matching (pick this) **or**
+symmetry tools — one deep slice, not both half-done. Parameterized twist
+generators already live in `src/origami/patterns/`.
 
 ## M4 — Folded state *(largely done)*
 
@@ -51,10 +54,10 @@ Done, in `src/origami/faces.ts` + `fold.ts` + the Fold preview overlay (`F`):
 
 Remaining for M4:
 
-- Layer ordering where it is decidable locally; today display stacking uses a
-  BFS-depth/fold-sign heuristic and is honest about it (global flat-foldability
-  is NP-hard — see `ORIGAMI_MATH.md`).
-- Side-by-side crease pattern ↔ folded preview (currently a modal overlay).
+- ~~Layer ordering where it is decidable locally~~ — **Done** for degree-4
+  vertices (`analyzeLayerOrder`). Display stacking in the fold preview is
+  still a BFS-depth heuristic and is labeled as such.
+- ~~Side-by-side crease pattern ↔ folded preview~~ — **Done** in the Fold overlay.
 - Self-intersection detection in the folded state.
 
 ## M5 — True rigid-origami 3D *(speculative)*
@@ -76,9 +79,9 @@ Deliberately last so the interaction spec and math have stopped moving.
 - Incremental per-vertex re-analysis and a spatial index, when pattern sizes justify
   them (`ARCHITECTURE.md`).
 - More built-in examples — each new one is also an analysis regression test.
-- PDF export with fold-line legend.
-- Accessibility: keyboard-only construction path, screen-reader description of the
-  analysis state.
+- PDF export with fold-line legend (SVG export already carries a mountain/valley legend).
+- Accessibility: further keyboard-only construction; richer screen-reader
+  descriptions of per-vertex residuals.
 
 ## Explicitly not planned
 

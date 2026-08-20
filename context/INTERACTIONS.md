@@ -27,17 +27,20 @@ All px constants are converted to paper units with `screenLengthToPaper(vp, px)`
 - **Pointer down** hit-tests at the pointer: vertices win over creases (`hitTest`).
   - Vertex hit → select it (shift = toggle in set), arm `maybe-drag-vertex`.
   - Crease hit → select it (shift = toggle), haptic tick.
-  - Miss → clear selection unless shift is held.
+  - Miss → arm a marquee (shift = additive). A click with no drag clears
+    selection unless shift is held.
 - **Drag** — once the pointer moves ≥ 4px from the press point, the gesture
   promotes to `drag-vertex`: `beginPreview()` snapshots the document, then every
   move calls `preview(moveVertex(...))` with the snapped position. No history is
   written mid-drag.
-- **Pointer up** → planarize, then `commitPreview()`: one undo step covering the
-  whole drag. If the drop leaves creases crossing (or the dragged vertex sitting
-  on a crease's interior), `planarizeDocument` subdivides at those incidences as
-  part of the same step — undo reverses the drag and the subdivision together.
+- **Pointer up** → merge if the dropped vertex coincides with another (within
+  `INCIDENCE_EPSILON`), then planarize, then `commitPreview()`: one undo step
+  covering the whole drag. Undo reverses the drag, the merge, and any
+  subdivision together.
 - **Hover** (no button) sets `hovered` for vertex/crease highlight.
-- Marquee selection does not exist yet.
+- **Marquee** — empty-canvas drag draws a rubber-band in screen space; on
+  release, vertices inside the paper AABB are selected, and creases whose both
+  endpoints are selected come along. Shift unions with the current selection.
 
 ### Vertex (`P`)
 
@@ -106,9 +109,10 @@ Which options are enabled depends on the gesture:
 
 - **Placement / crease drawing** — vertices, creases, alignments, grid, plus angle
   when a draft is active.
-- **Vertex drag** — alignments, grid, Kawasaki. Vertex snapping is *off* (merging
-  two vertices by dropping one on another is not implemented), and the dragged
-  vertex is excluded from alignment candidates.
+- **Vertex drag** — vertices (merge), alignments, grid, Kawasaki. The dragged
+  vertex is excluded from candidates. Landing on another vertex is labelled
+  "Merge" and wins over Kawasaki; drop absorbs the dragged vertex into the
+  target (rewire, drop the joining self-loop, collapse duplicate edges).
 
 The Kawasaki snap runs on top of whatever geometric snap was found: the geometric
 result is fed in as the proposed position, and if a flat-foldable position exists
@@ -126,6 +130,8 @@ Kawasaki), and the label. `StatusBar` echoes the label or the snap kind.
 | `1` `2` `3` | Assign selected creases mountain / valley / unassigned |
 | `Ctrl`/`Cmd` `Z` | Undo (with `Shift` → redo) |
 | `Ctrl`/`Cmd` `Y` | Redo |
+| `Arrow` keys | Nudge selected vertices 1 paper unit (Shift = 10); paper space is y-up |
+| `Ctrl`/`Cmd` `A` | Select every vertex and crease |
 | `Delete` / `Backspace` | Delete selection (deleting a vertex deletes its creases) |
 | `Escape` | Cancel gesture + clear selection |
 | `Space` (hold) | Temporary pan |
@@ -141,14 +147,16 @@ event, and only then does the DOM layer call `preventDefault()`.
 A modal overlay (`src/components/fold/FoldPreview.tsx`) that animates the
 pattern folding and shows the flat-folded result:
 
-- Opens with autoplay 0→100% (~2.4s, cubic ease) unless
-  `prefers-reduced-motion` — then it opens flat with the slider only.
+- Opens with autoplay 0→100% (~3.2s) unless `prefers-reduced-motion` — then it
+  opens flat with the slider only.
+- Wide layout: crease pattern on the left, simulated fold on the right.
 - Controls: **Flat** (t=0), **Fold/Pause**, **Folded** (t=1), a scrub slider,
   and **Top view** (straight-down look at the folded silhouette).
 - Faces respond to the slider immediately; front faces render paper-white,
   back faces cyan (duo paper), so flips are visible.
 - Warning chips surface non-flat-foldable vertices and unassigned creases
-  (which stay flat and hold their subtree open).
+  (which stay flat and hold their subtree open). A persistent note states that
+  face stacking is a painter-order heuristic, not a global foldability proof.
 - `F` toggles; while open, the overlay owns the keyboard (Escape closes).
 
 One gesture is one undo step. Two mechanisms in `documentStore`:
@@ -169,7 +177,7 @@ History depth is 200 snapshots; loading a document clears history.
 
 - **Feedback appears next to the geometry it describes.** `AnalysisBadgeLayer`
   draws a small pill offset (+12, +20) from the vertex: "Kawasaki · 2.1° off",
-  "Kawasaki · 3 creases" (odd degree), "Maekawa · M−V = 0".
+  "Kawasaki · 3 creases" (odd degree), "Maekawa · M−V = 0", "BLB · same assignment".
 - **Valid vertices stay quiet.** No badge for a satisfied vertex — except the one
   currently being dragged, which gets a green "Kawasaki ✓" so the user sees the
   moment it snaps into validity.

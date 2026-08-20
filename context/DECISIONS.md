@@ -276,3 +276,92 @@ carry `simOptions` overrides in the library for exactly such physics.
 **Reconsider when.** A GPU solver (Origami Simulator style) or collision
 handling is wanted; or hidden-line rendering replaces the faint overlay
 crease lines.
+
+---
+
+### Vertex merge on drop: absorb the dragged vertex into the target
+
+**Decision.** During a vertex drag, vertex snapping is on. Dropping onto
+another vertex (positions within `INCIDENCE_EPSILON` after the snap) absorbs
+the dragged id into the snap target: incident creases rewire, the crease that
+joined the pair is dropped as a self-loop, and duplicate edges collapse.
+Assignment preference on duplicates: `boundary` > mountain/valley > unassigned;
+ties keep the crease that already belonged to the survivor. Merge wins over
+the Kawasaki snap when both are in range.
+
+**Reason.** Two vertices at the same point with no shared identity silently
+break tiling, analysis, and repeat. The previous "vertex snap off during drag"
+was only because merge was undefined. Absorbing the dragged id (not the
+target) keeps the vertex the user aimed at, and one undo step covers drag +
+merge + planarize.
+
+**Reconsider when.** A dedicated "weld" tool or multi-vertex collapse is
+needed; or duplicate-edge M vs V conflicts should prompt instead of ranking.
+
+---
+
+### Planarize on import, keep parse byte-faithful
+
+**Decision.** `parseDocument` / `parseImportedDocument` still return the file
+as written (native JSON or FOLD). The editor load path (`ingestImportedDocument`)
+runs `planarizeDocument` so crossings gain vertices the same way a drawn crease
+would. Already-planar files come back as the same object (planarize is
+idempotent).
+
+**Reason.** The editor invariant is "no crossing without a shared vertex."
+Byte-faithful import left physically meaningless graphs in the canvas after
+Open, which analysis then misread. Tests that care about the wire format still
+call `parseDocument` directly.
+
+**Reconsider when.** A "keep raw / show crossings" inspector is wanted for
+debugging foreign files.
+
+---
+
+### FOLD is a second serialization, not a model change
+
+**Decision.** Native `.origami.json` stays the document model. FOLD import/
+export lives in `src/origami/foldFormat.ts` as a pure mapping (`M/V/U/B`,
+`vertices_coords`, `edges_vertices`). Cuts (`C`) are skipped; flat folds (`F`)
+become unassigned. Paper size is the vertex bounding box, translated into the
+first quadrant.
+
+**Reason.** Interop with Oripa / Rabbit Ear without making the in-memory model
+a FOLD frame (ids, paper spec, and undo snapshots stay ours).
+
+**Reconsider when.** We need `faces_vertices` round-trip or fold angles as
+first-class data.
+
+---
+
+### Marquee is window-select, not crossing-select
+
+**Decision.** A select-tool drag on empty canvas rubber-bands in screen space.
+On release, vertices whose paper position lies in the axis-aligned paper rect
+are selected; a crease is selected only if both endpoints are. Shift unions
+with the current selection. Click-without-drag still clears.
+
+**Reason.** Crease patterns are sparse; contained selection matches "grab these
+vertices" and avoids picking a long crease that merely crosses the box. The
+selection model already held both sets.
+
+**Reconsider when.** Users ask to select a crease by crossing it (Illustrator
+crossing mode); then add a modifier, don't replace window-select.
+
+---
+
+### Local theorems only: BLB + degree-4 layer order, no global solver
+
+**Decision.** Big-little-big (strict local-min sectors) and a degree-4 local
+layer-order check run in `analyzeDocument` with the same structured result
+shape as Kawasaki/Maekawa. Global flat-foldability and NP-hard layer ordering
+are not attempted. The fold preview states that painter-order stacking is a
+heuristic. Auto-assignment enumerates at most 8 unassigned creases at one
+Kawasaki-valid vertex.
+
+**Reason.** The product claim is live local feedback beside the hand, not a
+"this folds" certificate. A global solver would be slow, often incomplete, and
+easy to overclaim.
+
+**Reconsider when.** A restricted family (single-vertex, degree-4 maps, known
+tessellation cells) has a complete local-to-global story worth shipping.

@@ -43,15 +43,15 @@ priority order).
   to incident creases), `splitCreaseAt`, `renameDocument`, plus `validateDocument`.
   Ids are stable across edits, which is what makes snapshot history, selection, and
   React keys all work without extra bookkeeping.
-- `analysis.ts` — structured Kawasaki/Maekawa results per vertex (see
-  `ORIGAMI_MATH.md`). Results carry status, numeric residual, expected vs actual,
-  affected crease ids, and a human sentence, so the same object drives badges, the
-  inspector, snapping, and future tutorials.
+- `analysis.ts` — structured Kawasaki/Maekawa/big-little-big/layer-order results
+  per vertex (see `ORIGAMI_MATH.md`). Results carry status, numeric residual,
+  expected vs actual, affected crease ids, and a human sentence.
 - `kawasakiSnap.ts` — the "snap to flat-foldable" solver.
-- `planarize.ts` — incidence-completion to fixpoint: vertices on crease
-  interiors split the crease; proper crossings gain a shared junction vertex.
-  Invoked by the editor at every commit point (crease completion, drag drop,
-  nudge, coordinate edit), never per pointer frame.
+- `bigLittleBig.ts` / `layerOrder.ts` / `suggestAssignment.ts` — local lemmas
+  and assignment enumeration.
+- `planarize.ts` — incidence-completion to fixpoint.
+- `foldFormat.ts` — FOLD mapping; `serialization.ts` `ingestImportedDocument`
+  planarizes after parse.
 - `tiling.ts` — motif repetition.
 - `serialization.ts` — the wire format *is* the model; `parseDocument` is the single
   entry point for untrusted input (migrate → typecheck → `validateDocument`).
@@ -84,8 +84,8 @@ priority order).
 rail collapsing to a bottom toolbar under `md`. `CanvasStage` owns the single `<svg>`
 pointer surface, the `ResizeObserver`, the non-passive wheel listener, and the
 window key handlers; it forwards everything to the controller and renders layers in
-order: paper → creases → snap → draft → vertices → badges. Each layer subscribes to
-a narrow store slice so a pointer move only re-renders what changed.
+order: paper → creases → snap → draft → vertices → badges → marquee. Each layer
+subscribes to a narrow store slice so a pointer move only re-renders what changed.
 
 ## Controller outside React
 

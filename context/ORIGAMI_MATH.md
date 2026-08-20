@@ -3,6 +3,7 @@
 What the app actually computes, where, and what it deliberately does not compute.
 
 Implementation: `src/origami/analysis.ts`, `src/origami/kawasakiSnap.ts`,
+`src/origami/bigLittleBig.ts`, `src/origami/layerOrder.ts`,
 `src/geometry/angles.ts`, `src/geometry/tolerance.ts`.
 
 ## Sector angles
@@ -76,10 +77,36 @@ flipping between pass and fail. The residual is always reported numerically even
 when valid, so the app never claims more precision than it has.
 
 `locallyFlatFoldable` is a roll-up: true for boundary vertices, for vertices with
-no creases, or when Kawasaki is `valid` and Maekawa is not `invalid`.
+no creases, or when Kawasaki is `valid` and neither Maekawa nor big-little-big
+is `invalid`.
 
 `analyzeDocument` walks every vertex and counts interior/valid/near/invalid,
 ignoring interior vertices of degree 0.
+
+## Big-little-big lemma
+
+At an interior vertex of even degree ≥ 4, a sector that is **strictly smaller
+than both neighbors** must be bounded by opposite mountain/valley assignments —
+otherwise the small flap cannot tuck. `analyzeBigLittleBig` reports those
+local-min sectors and whether the constraints are satisfied, still satisfiable
+(unassigned creases), or impossible.
+
+Equal-angle runs (the generalized lemma) are not checked. Vertices with no
+strict local-min sector (e.g. four 90° sectors) report `not-applicable`.
+
+## Degree-4 local layer order
+
+When a degree-4 vertex has a unique strictly smallest sector, that sector tucks
+under its neighbors and local stacking is determined (`analyzeLayerOrder`).
+This is not a global layer-order solver: higher-degree vertices and patterns
+without a unique smallest sector stay `not-applicable`, and the fold preview's
+painter order remains a heuristic.
+
+## Auto-assignment
+
+`suggestAssignments(doc, vertexId)` enumerates mountain/valley completions of
+unassigned creases (at most 8 free, 256 trials) that satisfy Maekawa and
+big-little-big. The inspector offers the first suggestion as an action.
 
 ## The Kawasaki snap solver
 
@@ -118,18 +145,18 @@ fine inside a pointer-move frame.
 Local conditions are necessary, not sufficient. The app is honest about this: it
 reports "flat-foldable" per vertex, never "this pattern folds".
 
-- **Big-little-big lemma** — the unique strictly-smallest sector at a vertex must
-  be bounded by creases of opposite assignment (and the generalized version for
-  equal-angle runs). Not checked, so some patterns pass Kawasaki + Maekawa and
-  still cannot fold.
+- **Generalized big-little-big** — equal-angle runs of "little" sectors. Classic
+  strictly-local-min sectors are checked.
 - **Global flat-foldability / layer ordering** — deciding whether a whole crease
   pattern folds flat, and finding a valid layer ordering, is NP-hard (Bern &
-  Hayes). Any future support will be heuristic or restricted to structured
-  families (twists, tessellations with known unit cells), not a general solver.
-- **Self-intersection / non-crossing creases** — creases may cross without
-  creating a vertex; nothing detects or subdivides at intersections yet.
-- **Faces** — the document stores vertices and creases only. No planar-graph face
-  extraction, so no per-face reasoning, folded state, or layer stacking.
+  Hayes). Degree-4 local order is reported where unique; the fold preview's
+  stacking is a display heuristic.
+- **Self-intersection in the folded state** — the simulated mesh cannot tear, but
+  faces may still pass through each other.
+
+Planarization (`planarize.ts`) and face extraction (`faces.ts`) **are**
+implemented: creases that cross gain a shared vertex at commit points and on
+import; the fold preview builds faces from that graph.
 
 ## Reference construction: the square twist
 
