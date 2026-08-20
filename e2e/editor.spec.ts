@@ -274,6 +274,7 @@ test.describe("editor", () => {
 
     await page.getByTestId("menu-fold").click();
     await expect(page.getByTestId("fold-preview")).toBeVisible();
+    await expect(page.getByTestId("fold-layer-note")).toBeVisible();
     // The simulated mesh renders the square twist's faces as triangles.
     expect(await page.getByTestId("fold-face").count()).toBeGreaterThan(8);
 
@@ -331,6 +332,78 @@ test.describe("editor", () => {
     await page.goto("http://localhost:3000/");
     await expect(page.getByTestId("pattern-browser")).toBeVisible();
     await context.close();
+  });
+
+  test("dropping a vertex onto another merges them", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    await dismissOnboarding(page);
+
+    await page.getByTestId("menu-file").click();
+    await page.getByTestId("menu-new").click();
+    const box = (await page.getByTestId("editor-canvas").boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    await page.getByTestId("tool-vertex").click();
+    await page.mouse.click(cx - 80, cy);
+    await page.mouse.click(cx + 80, cy);
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "2 vertices · 0 creases",
+    );
+
+    await page.getByTestId("tool-select").click();
+    await page.mouse.move(cx - 80, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx + 80, cy, { steps: 12 });
+    await expect(page.getByTestId("snap-layer")).toContainText("Merge");
+    await page.mouse.up();
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "1 vertices · 0 creases",
+    );
+
+    await page.keyboard.press("Control+z");
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "2 vertices · 0 creases",
+    );
+  });
+
+  test("marquee selects vertices inside the rubber-band", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    await dismissOnboarding(page);
+
+    await page.getByTestId("menu-file").click();
+    await page.getByTestId("menu-new").click();
+    const canvas = page.getByTestId("editor-canvas");
+    const box = (await canvas.boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    await page.getByTestId("tool-vertex").click();
+    await page.mouse.click(cx - 40, cy - 40);
+    await page.mouse.click(cx + 40, cy - 40);
+    await page.mouse.click(cx, cy + 40);
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "3 vertices · 0 creases",
+    );
+
+    await page.getByTestId("tool-select").click();
+    await page.mouse.move(cx - 90, cy + 90);
+    await page.mouse.down();
+    await page.mouse.move(cx + 90, cy - 90, { steps: 8 });
+    await expect(page.getByTestId("marquee-rect")).toBeVisible();
+    await page.mouse.up();
+
+    await expect(page.getByTestId("inspector-panel")).toBeVisible();
+    await expect(page.getByTestId("inspector-panel")).toContainText("3 vertices selected");
+  });
+
+  test("exports a FOLD file", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    await dismissOnboarding(page);
+    await page.getByTestId("menu-file").click();
+    const foldDownload = page.waitForEvent("download");
+    await page.getByTestId("export-fold").click();
+    expect((await foldDownload).suggestedFilename()).toMatch(/\.fold$/);
   });
 
   test("mobile: editor loads with touch toolbar", async ({ page }, testInfo) => {

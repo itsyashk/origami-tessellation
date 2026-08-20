@@ -9,6 +9,7 @@ const errors = [];
 page.on("pageerror", (err) => errors.push(String(err)));
 page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 
+await page.addInitScript(() => localStorage.setItem("origami.gallery.seen", "1"));
 await page.goto("http://localhost:3000", { waitUntil: "networkidle" });
 const hint = page.getByTestId("onboarding-hint");
 if (await hint.isVisible().catch(() => false)) {

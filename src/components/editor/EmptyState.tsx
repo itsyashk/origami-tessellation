@@ -19,7 +19,7 @@ export function EmptyState() {
             a blank sheet — grab the <span className="text-(--cyan)">Vertex</span>{" "}
             or <span className="text-(--cyan)">Crease</span> tool,
             <br />
-            or open an Example from the top bar
+            or open Patterns from the top bar
           </>
         )}
       </div>

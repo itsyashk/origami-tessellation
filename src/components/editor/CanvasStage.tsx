@@ -18,6 +18,7 @@ import { DraftLayer } from "./layers/DraftLayer";
 import { SnapLayer } from "./layers/SnapLayer";
 import { AnalysisBadgeLayer } from "./layers/AnalysisBadgeLayer";
 import { PlacementPreviewLayer } from "./layers/PlacementPreviewLayer";
+import { MarqueeLayer } from "./layers/MarqueeLayer";
 import { ZoomControls } from "./ZoomControls";
 import { StatusBar } from "./StatusBar";
 import { EmptyState } from "./EmptyState";
@@ -138,7 +139,7 @@ export function CanvasStage() {
         className="absolute inset-0 h-full w-full select-none"
         style={{ touchAction: "none", cursor: CURSOR_BY_TOOL[tool] }}
         role="application"
-        aria-label="Crease pattern canvas. Use the toolbar to place vertices and draw creases."
+        aria-label="Crease pattern canvas. V select, P place vertex, C draw crease, H pan. Drag on empty paper to marquee-select. Arrow keys nudge selected vertices."
         onPointerDown={(ev) => {
           (ev.currentTarget as SVGSVGElement).setPointerCapture(ev.pointerId);
           controller.pointerDown(localPoint(ev), ev);
@@ -159,6 +160,7 @@ export function CanvasStage() {
         <PlacementPreviewLayer />
         <VertexLayer />
         <AnalysisBadgeLayer />
+        <MarqueeLayer />
       </svg>
       <EmptyState />
       <ZoomControls containerRef={containerRef} />

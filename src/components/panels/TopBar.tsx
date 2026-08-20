@@ -15,10 +15,10 @@ import {
   ChevronDown,
   Layers,
 } from "lucide-react";
-import { parseDocument } from "@/origami/serialization";
+import { ingestImportedDocument } from "@/origami/serialization";
 import { tileMotif } from "@/origami/tiling";
 import { renameDocument } from "@/origami/model";
-import { downloadJson, downloadSvg } from "@/export/download";
+import { downloadJson, downloadSvg, downloadFold } from "@/export/download";
 import { useDocumentStore } from "@/state/documentStore";
 import { useEditorStore } from "@/state/editorStore";
 
@@ -60,7 +60,7 @@ export function TopBar() {
     try {
       const text = await file.text();
       clearSelection();
-      loadDocument(parseDocument(text));
+      loadDocument(ingestImportedDocument(text));
     } catch (error) {
       window.alert(
         error instanceof Error ? error.message : "Could not open that file.",
@@ -140,7 +140,7 @@ export function TopBar() {
               className="menu-item"
               onSelect={() => fileInputRef.current?.click()}
             >
-              <FolderOpen size={15} /> Open JSON…
+              <FolderOpen size={15} /> Open JSON or FOLD…
             </DropdownMenu.Item>
             <DropdownMenu.Separator className="my-1 h-px bg-(--ink)/10" />
             <DropdownMenu.Item
@@ -156,6 +156,13 @@ export function TopBar() {
               onSelect={() => downloadJson(doc)}
             >
               <Download size={15} /> Export JSON
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              className="menu-item"
+              data-testid="export-fold"
+              onSelect={() => downloadFold(doc)}
+            >
+              <Download size={15} /> Export FOLD
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
@@ -290,7 +297,7 @@ export function TopBar() {
           </button>
         </Popover.Trigger>
         <Popover.Portal>
-          <Popover.Content className="popover-surface w-64 p-3" sideOffset={6} align="end">
+          <Popover.Content className="popover-surface w-72 p-3" sideOffset={6} align="end">
             <p className="mb-1.5 text-xs font-extrabold">Shortcuts</p>
             <ShortcutRow keys={["V"]} label="Select" />
             <ShortcutRow keys={["P"]} label="Place vertices" />
@@ -299,6 +306,8 @@ export function TopBar() {
             <ShortcutRow keys={["G"]} label="Pattern library" />
             <ShortcutRow keys={["F"]} label="Fold preview" />
             <ShortcutRow keys={["1", "2", "3"]} label="Mountain / valley / clear" />
+            <ShortcutRow keys={["↑", "↓", "←", "→"]} label="Nudge selection" />
+            <ShortcutRow keys={["Ctrl", "A"]} label="Select all" />
             <ShortcutRow keys={["Ctrl", "Z"]} label="Undo" />
             <ShortcutRow keys={["Ctrl", "⇧", "Z"]} label="Redo" />
             <ShortcutRow keys={["Del"]} label="Delete selection" />
@@ -322,7 +331,7 @@ export function TopBar() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json,application/json"
+        accept=".json,.fold,application/json"
         className="hidden"
         onChange={(ev) => {
           const file = ev.target.files?.[0];

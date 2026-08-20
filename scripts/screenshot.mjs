@@ -12,6 +12,7 @@ page.on("console", (msg) => {
   if (msg.type() === "error") errors.push(msg.text());
 });
 page.on("pageerror", (err) => errors.push(String(err)));
+await page.addInitScript(() => localStorage.setItem("origami.gallery.seen", "1"));
 await page.goto("http://localhost:3000", { waitUntil: "networkidle" });
 await page.waitForTimeout(800);
 await page.screenshot({ path: out });

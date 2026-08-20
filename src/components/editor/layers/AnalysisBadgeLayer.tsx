@@ -61,6 +61,14 @@ export function AnalysisBadgeLayer() {
         text: `Maekawa · M−V = ${m.difference}`,
         tone: "invalid",
       });
+    } else if (va.bigLittleBig.status === "invalid") {
+      badges.push({
+        vertexId: v.id,
+        x: p.x,
+        y: p.y,
+        text: "BLB · same assignment",
+        tone: "invalid",
+      });
     } else if (v.id === draggingId && k.status === "valid") {
       badges.push({
         vertexId: v.id,

@@ -30,6 +30,7 @@ import {
 import { useDocumentStore } from "@/state/documentStore";
 import { useEditorStore } from "@/state/editorStore";
 import { useAnalysis } from "@/state/useAnalysis";
+import { PatternThumbnail } from "@/components/patterns/PatternThumbnail";
 
 const FRONT = { r: 0xfd, g: 0xfb, b: 0xf7 };
 const BACK = { r: 0xbc, g: 0xe2, b: 0xec };
@@ -205,9 +206,9 @@ function FoldPreviewContent({
   return (
     <Dialog.Root open onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-(--ink)/30 backdrop-blur-[2px]" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-(--ink)/35" />
         <Dialog.Content
-          className="craft-card fixed left-1/2 top-1/2 z-50 flex h-[min(88dvh,720px)] w-[min(94vw,920px)] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 p-4 focus:outline-none"
+          className="craft-card fixed left-1/2 top-1/2 z-50 flex h-[min(90dvh,760px)] w-[min(96vw,1120px)] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 p-4 focus:outline-none"
           aria-describedby={undefined}
           data-testid="fold-preview"
         >
@@ -236,6 +237,13 @@ function FoldPreviewContent({
                 {sim.model.unassignedHingeCount} unassigned stay flat
               </span>
             )}
+            <span
+              className="chip chip-muted hidden sm:inline-flex"
+              data-testid="fold-layer-note"
+              title="Painter-order stacking is a display heuristic, not a proof that layers never collide"
+            >
+              stacking is a heuristic
+            </span>
             <Dialog.Close asChild>
               <button
                 type="button"
@@ -248,7 +256,25 @@ function FoldPreviewContent({
             </Dialog.Close>
           </div>
 
-          <div className="graph-paper relative min-h-0 flex-1 overflow-hidden rounded-lg border border-(--ink)/10">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="flex min-h-0 flex-col gap-1.5">
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-(--ink-faint)">
+                Crease pattern
+              </p>
+              <div className="graph-paper relative min-h-40 flex-1 overflow-hidden rounded-lg border border-(--ink)/10 md:min-h-0">
+                <PatternThumbnail
+                  doc={doc}
+                  size={420}
+                  className="h-full w-full"
+                  label={`Crease pattern for ${doc.name}`}
+                />
+              </div>
+            </div>
+            <div className="flex min-h-0 flex-col gap-1.5">
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-(--ink-faint)">
+                Folded form
+              </p>
+              <div className="graph-paper relative min-h-0 flex-1 overflow-hidden rounded-lg border border-(--ink)/10">
             {hasCreases ? (
               <svg
                 className="h-full w-full"
@@ -292,7 +318,15 @@ function FoldPreviewContent({
                 </p>
               </div>
             )}
+              </div>
+            </div>
           </div>
+
+          <p className="text-[11px] font-semibold leading-snug text-(--ink-faint)">
+            Local Kawasaki, Maekawa, and big-little-big still apply. Face
+            stacking is painter-order from the fold tree — not a proof the
+            layers never collide, and not a global flat-foldability check.
+          </p>
 
           <div className="flex flex-wrap items-center gap-2">
             <button

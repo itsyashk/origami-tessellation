@@ -10,9 +10,13 @@ import { creaseStyles } from "@/design-system/tokens";
 export function PatternThumbnail({
   doc,
   size = 128,
+  className,
+  label,
 }: {
   doc: OrigamiDocument;
   size?: number;
+  className?: string;
+  label?: string;
 }) {
   const vmap = useMemo(() => vertexMap(doc), [doc]);
   const { width, height } = doc.paper;
@@ -23,8 +27,10 @@ export function PatternThumbnail({
       width={size}
       height={size}
       viewBox={`${-pad} ${-pad} ${width + 2 * pad} ${height + 2 * pad}`}
-      aria-hidden
-      className="rounded-md"
+      aria-hidden={!label}
+      aria-label={label}
+      role={label ? "img" : undefined}
+      className={className ?? "rounded-md"}
     >
       <rect
         x={0}

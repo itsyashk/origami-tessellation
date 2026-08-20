@@ -6,8 +6,9 @@
  * the same behavior spec can be ported to native gesture recognizers.
  *
  * Gesture model:
- *  - select: click selects; dragging a vertex previews continuously with
- *    snapping (alignment, grid, Kawasaki) and commits one undo step on drop.
+ *  - select: click selects; empty drag marquees; dragging a vertex previews
+ *    with snapping (vertex/merge, alignment, grid, Kawasaki) and commits one
+ *    undo step on drop, merging if it landed on another vertex.
  *  - vertex: click places a vertex (snapped); clicking a crease splits it.
  *  - crease: click-click or press-drag between endpoints; chains from the
  *    last endpoint; Escape cancels. New endpoints may split creases or
@@ -25,6 +26,7 @@ import {
   clampToPaper,
   deleteGeometry,
   findVertexAt,
+  mergeVertices,
   moveVertex,
   setCreaseAssignment,
   splitCreaseAt,
@@ -32,8 +34,9 @@ import {
   type OrigamiDocument,
 } from "@/origami/model";
 import { findKawasakiSnap } from "@/origami/kawasakiSnap";
-import { planarizeDocument } from "@/origami/planarize";
+import { INCIDENCE_EPSILON, planarizeDocument } from "@/origami/planarize";
 import { hitTest } from "./hitTest";
+import { paperRectFromScreenBox, selectInPaperRect } from "./marquee";
 import { panBy, screenLengthToPaper, screenToPaper, zoomAt } from "./viewport";
 import { useDocumentStore } from "@/state/documentStore";
 import { useEditorStore, type ToolId } from "@/state/editorStore";
@@ -50,6 +53,8 @@ type PointerRole =
   | { kind: "idle" }
   | { kind: "maybe-drag-vertex"; vertexId: string; startScreen: Vec2 }
   | { kind: "drag-vertex"; vertexId: string }
+  | { kind: "maybe-marquee"; startScreen: Vec2; additive: boolean }
+  | { kind: "marquee"; startScreen: Vec2; additive: boolean }
   | { kind: "maybe-draw-crease"; startScreen: Vec2 }
   | { kind: "pan"; lastScreen: Vec2 }
   | { kind: "pinch" };
@@ -189,8 +194,13 @@ export class EditorController {
       } else if (hit?.type === "crease") {
         this.editor.selectCrease(hit.id, ev.shiftKey);
         hapticTick();
-      } else if (!ev.shiftKey) {
-        this.editor.clearSelection();
+      } else {
+        // Miss: arm a marquee. A click with no drag clears (unless shift).
+        this.role = {
+          kind: "maybe-marquee",
+          startScreen: screen,
+          additive: ev.shiftKey,
+        };
       }
       return;
     }
@@ -258,6 +268,24 @@ export class EditorController {
       } else {
         return;
       }
+    }
+
+    if (this.role.kind === "maybe-marquee") {
+      if (distance(screen, this.role.startScreen) >= DRAG_THRESHOLD_PX) {
+        if (!this.role.additive) this.editor.clearSelection();
+        this.role = {
+          kind: "marquee",
+          startScreen: this.role.startScreen,
+          additive: this.role.additive,
+        };
+        this.editor.setMarquee({ start: this.role.startScreen, end: screen });
+      }
+      return;
+    }
+
+    if (this.role.kind === "marquee") {
+      this.editor.setMarquee({ start: this.role.startScreen, end: screen });
+      return;
     }
 
     if (this.role.kind === "drag-vertex") {
@@ -330,13 +358,52 @@ export class EditorController {
     }
 
     if (this.role.kind === "drag-vertex") {
-      // If the drop leaves creases crossing (or the vertex sitting on one),
-      // subdivide before the gesture commits — same undo step as the drag.
-      const planar = planarizeDocument(this.docStore.doc);
-      if (planar !== this.docStore.doc) this.docStore.preview(planar);
+      // Drop: merge if we landed on another vertex, then planarize crossings.
+      let next = this.docStore.doc;
+      const draggedId = this.role.vertexId;
+      const dragged = next.vertices.find((v) => v.id === draggedId);
+      if (dragged) {
+        const other = next.vertices.find(
+          (v) => v.id !== draggedId && distance(v, dragged) <= INCIDENCE_EPSILON,
+        );
+        if (other) {
+          next = mergeVertices(next, other.id, draggedId);
+          this.editor.selectVertex(other.id);
+        }
+      }
+      next = planarizeDocument(next);
+      if (next !== this.docStore.doc) this.docStore.preview(next);
       this.docStore.commitPreview();
       this.editor.setDraggingVertexId(null);
       this.setSnap(null);
+      this.role = { kind: "idle" };
+      return;
+    }
+    if (this.role.kind === "marquee") {
+      const rect = paperRectFromScreenBox(
+        this.editor.viewport,
+        this.role.startScreen,
+        screen,
+      );
+      const hit = selectInPaperRect(this.docStore.doc, rect);
+      if (this.role.additive) {
+        const vertexIds = new Set(this.editor.selection.vertexIds);
+        const creaseIds = new Set(this.editor.selection.creaseIds);
+        for (const id of hit.vertexIds) vertexIds.add(id);
+        for (const id of hit.creaseIds) creaseIds.add(id);
+        this.editor.setSelection({ vertexIds, creaseIds });
+      } else {
+        this.editor.setSelection({
+          vertexIds: new Set(hit.vertexIds),
+          creaseIds: new Set(hit.creaseIds),
+        });
+      }
+      this.editor.setMarquee(null);
+      this.role = { kind: "idle" };
+      return;
+    }
+    if (this.role.kind === "maybe-marquee") {
+      if (!this.role.additive) this.editor.clearSelection();
       this.role = { kind: "idle" };
       return;
     }
@@ -396,37 +463,41 @@ export class EditorController {
     const clamped = clampToPaper(doc.paper, paperPos);
 
     let snap = computeSnap(doc, clamped, {
-      vertices: false, // merging vertices by drop is a future op
+      vertices: true,
       alignments: true,
       gridSize: GRID_SIZE,
       excludeVertexIds: [vertexId],
       tolerance: this.tolerance(SNAP_TOLERANCE_PX),
     });
 
-    // Mathematical snap: pull onto the flat-foldable locus when close.
-    const kawasaki = findKawasakiSnap(
-      doc,
-      vertexId,
-      snap ? snap.position : clamped,
-      this.tolerance(KAWASAKI_SNAP_PX),
-    );
-    // The descent is unconstrained; a locus continuing past the paper edge
-    // must not pull the vertex off the sheet.
-    const onSheet =
-      kawasaki &&
-      kawasaki.position.x >= 0 &&
-      kawasaki.position.x <= doc.paper.width &&
-      kawasaki.position.y >= 0 &&
-      kawasaki.position.y <= doc.paper.height;
-    if (kawasaki && onSheet) {
-      snap = {
-        kind: "kawasaki",
-        position: kawasaki.position,
-        distance: distance(clamped, kawasaki.position),
-        vertexIds: kawasaki.affectedVertexIds,
-        label: "Kawasaki ✓",
-        guides: snap?.guides ?? [],
-      };
+    // Merge wins over Kawasaki: dropping onto a vertex is an explicit join.
+    if (snap?.kind === "vertex") {
+      snap = { ...snap, label: "Merge" };
+    } else {
+      const kawasaki = findKawasakiSnap(
+        doc,
+        vertexId,
+        snap ? snap.position : clamped,
+        this.tolerance(KAWASAKI_SNAP_PX),
+      );
+      // The descent is unconstrained; a locus continuing past the paper edge
+      // must not pull the vertex off the sheet.
+      const onSheet =
+        kawasaki &&
+        kawasaki.position.x >= 0 &&
+        kawasaki.position.x <= doc.paper.width &&
+        kawasaki.position.y >= 0 &&
+        kawasaki.position.y <= doc.paper.height;
+      if (kawasaki && onSheet) {
+        snap = {
+          kind: "kawasaki",
+          position: kawasaki.position,
+          distance: distance(clamped, kawasaki.position),
+          vertexIds: kawasaki.affectedVertexIds,
+          label: "Kawasaki ✓",
+          guides: snap?.guides ?? [],
+        };
+      }
     }
 
     const target = snap ? snap.position : clamped;
@@ -495,6 +566,9 @@ export class EditorController {
       this.docStore.cancelPreview();
       this.editor.setDraggingVertexId(null);
     }
+    if (this.role.kind === "marquee" || this.role.kind === "maybe-marquee") {
+      this.editor.setMarquee(null);
+    }
     if (this.editor.creaseDraft) {
       this.docStore.cancelPreview();
       this.editor.setCreaseDraft(null);
@@ -547,6 +621,15 @@ export class EditorController {
       return false;
     }
 
+    if (mod && (key === "a" || key === "A")) {
+      const doc = this.docStore.doc;
+      this.editor.setSelection({
+        vertexIds: new Set(doc.vertices.map((v) => v.id)),
+        creaseIds: new Set(doc.creases.map((c) => c.id)),
+      });
+      return true;
+    }
+
     if (mod && (key === "z" || key === "Z")) {
       // A live draft/drag references document state that undo may remove —
       // finish the gesture story first, then time-travel.
@@ -587,16 +670,23 @@ export class EditorController {
     };
     if (nudge[key] && !mod) {
       const selected = [...this.editor.selection.vertexIds];
-      if (selected.length !== 1) return false;
+      if (selected.length === 0) return false;
       const doc = this.docStore.doc;
-      const vertex = doc.vertices.find((v) => v.id === selected[0]);
-      if (!vertex) return false;
       const step = ev.shiftKey ? 10 : 1;
-      const next = clampToPaper(doc.paper, {
-        x: vertex.x + nudge[key].x * step,
-        y: vertex.y + nudge[key].y * step,
-      });
-      this.docStore.commit(planarizeDocument(moveVertex(doc, vertex.id, next)));
+      let next = doc;
+      for (const id of selected) {
+        const vertex = next.vertices.find((v) => v.id === id);
+        if (!vertex) continue;
+        next = moveVertex(
+          next,
+          id,
+          clampToPaper(doc.paper, {
+            x: vertex.x + nudge[key].x * step,
+            y: vertex.y + nudge[key].y * step,
+          }),
+        );
+      }
+      this.docStore.commit(planarizeDocument(next));
       return true;
     }
 

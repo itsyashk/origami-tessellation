@@ -9,6 +9,7 @@
 import { Trash2 } from "lucide-react";
 import { radToDeg } from "@/geometry/angles";
 import {
+  applyCreaseAssignments,
   deleteGeometry,
   moveVertex,
   setCreaseAssignment,
@@ -16,6 +17,7 @@ import {
   type CreaseAssignment,
 } from "@/origami/model";
 import { planarizeDocument } from "@/origami/planarize";
+import { suggestAssignments } from "@/origami/suggestAssignment";
 import { useDocumentStore } from "@/state/documentStore";
 import { useEditorStore, emptySelection } from "@/state/editorStore";
 import { useAnalysis } from "@/state/useAnalysis";
@@ -80,6 +82,9 @@ export function InspectorPanel() {
     if (!a || !b) return null;
     return Math.hypot(a.x - b.x, a.y - b.y);
   })();
+
+  const suggestions = singleVertex ? suggestAssignments(doc, singleVertex.id) : [];
+  const firstSuggestion = suggestions[0];
 
   return (
     <aside
@@ -176,7 +181,60 @@ export function InspectorPanel() {
               {va.maekawa.mountains} mountain · {va.maekawa.valleys} valley
               {va.maekawa.unassigned > 0 ? ` · ${va.maekawa.unassigned} free` : ""}
             </p>
+            <p className="text-[11px] font-semibold leading-relaxed text-(--ink-faint)">
+              {va.maekawa.explanation}
+            </p>
           </div>
+
+          {va.degree >= 4 && va.isInterior && (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-(--ink-faint)">Big-little-big</span>
+                <span className={STATUS_CHIP[va.bigLittleBig.status]} data-testid="blb-chip">
+                  {va.bigLittleBig.status === "valid"
+                    ? "✓ opposite"
+                    : va.bigLittleBig.status === "not-applicable"
+                      ? "n/a"
+                      : "same fold"}
+                </span>
+              </div>
+              <p className="text-[11px] font-semibold leading-relaxed text-(--ink-faint)">
+                {va.bigLittleBig.explanation}
+              </p>
+            </div>
+          )}
+
+          {va.degree === 4 && va.isInterior && va.layerOrder.status !== "not-applicable" && (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-(--ink-faint)">Layer order</span>
+                <span className={STATUS_CHIP[va.layerOrder.status]} data-testid="layer-chip">
+                  {va.layerOrder.status === "valid"
+                    ? "✓ local"
+                    : va.layerOrder.status === "invalid"
+                      ? "collision"
+                      : "n/a"}
+                </span>
+              </div>
+              <p className="text-[11px] font-semibold leading-relaxed text-(--ink-faint)">
+                {va.layerOrder.explanation}
+              </p>
+            </div>
+          )}
+
+          {firstSuggestion && (
+            <button
+              type="button"
+              className="btn btn-outline mt-1 self-start"
+              data-testid="apply-assignment-suggestion"
+              onClick={() =>
+                commit(applyCreaseAssignments(doc, firstSuggestion.assignments))
+              }
+            >
+              Assign {firstSuggestion.mountains}M / {firstSuggestion.valleys}V
+              {suggestions.length > 1 ? ` · ${suggestions.length} ways` : ""}
+            </button>
+          )}
         </section>
       )}
 

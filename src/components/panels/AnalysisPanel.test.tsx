@@ -17,7 +17,7 @@ describe("AnalysisPanel", () => {
 
   it("explains itself on an empty document", () => {
     render(<AnalysisPanel />);
-    expect(screen.getByText(/Kawasaki and Maekawa/)).toBeInTheDocument();
+    expect(screen.getByText(/Kawasaki, Maekawa, and/)).toBeInTheDocument();
   });
 
   it("summarizes a fully valid pattern", () => {

@@ -16,6 +16,11 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      name: "desktop-edge",
+      grep: /opens into the square twist/,
+      use: { ...devices["Desktop Edge"], channel: "msedge" },
+    },
+    {
       name: "mobile-iphone",
       // iPhone metrics but the Chromium engine, so CI needs one browser.
       use: { ...devices["iPhone 13"], browserName: "chromium" },

@@ -46,6 +46,8 @@ interface EditorState {
   draggingVertexId: string | null;
   /** Pointer position in paper coordinates (for status readouts). */
   pointerPaper: Vec2 | null;
+  /** Live rubber-band rectangle in screen coordinates, or null. */
+  marquee: { start: Vec2; end: Vec2 } | null;
   /** Whether the fold preview overlay is open. */
   foldOpen: boolean;
   /** Whether the pattern library gallery is open. */
@@ -64,6 +66,7 @@ interface EditorState {
   setActiveSnap: (snap: SnapHit | null) => void;
   setDraggingVertexId: (id: string | null) => void;
   setPointerPaper: (pos: Vec2 | null) => void;
+  setMarquee: (marquee: EditorState["marquee"]) => void;
   setFoldOpen: (open: boolean) => void;
   setGalleryOpen: (open: boolean) => void;
 }
@@ -84,6 +87,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   activeSnap: null,
   draggingVertexId: null,
   pointerPaper: null,
+  marquee: null,
   foldOpen: false,
   galleryOpen: false,
 
@@ -92,12 +96,12 @@ export const useEditorStore = create<EditorState>((set) => ({
     // including its document transaction — otherwise a later cancel could
     // roll the document back to a stale baseline.
     useDocumentStore.getState().cancelPreview();
-    set({ tool, creaseDraft: null, activeSnap: null, draggingVertexId: null });
+    set({ tool, creaseDraft: null, activeSnap: null, draggingVertexId: null, marquee: null });
   },
 
   resetGesture: () => {
     useDocumentStore.getState().cancelPreview();
-    set({ creaseDraft: null, activeSnap: null, draggingVertexId: null });
+    set({ creaseDraft: null, activeSnap: null, draggingVertexId: null, marquee: null });
   },
 
   setSelection: (selection) => set({ selection }),
@@ -123,6 +127,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setActiveSnap: (activeSnap) => set({ activeSnap }),
   setDraggingVertexId: (draggingVertexId) => set({ draggingVertexId }),
   setPointerPaper: (pointerPaper) => set({ pointerPaper }),
+  setMarquee: (marquee) => set({ marquee }),
   setFoldOpen: (foldOpen) => set({ foldOpen }),
   setGalleryOpen: (galleryOpen) => set({ galleryOpen }),
 }));
