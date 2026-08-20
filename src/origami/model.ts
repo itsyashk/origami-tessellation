@@ -234,6 +234,95 @@ export const deleteGeometry = (
   };
 };
 
+/**
+ * Assignment preference when two creases collapse onto the same pair
+ * during a vertex merge. Boundary (paper edge) wins; an assigned fold
+ * beats unassigned; mountain vs valley at equal rank keeps the crease
+ * that already belonged to the surviving vertex.
+ */
+const assignmentRank = (a: CreaseAssignment): number => {
+  if (a === "boundary") return 3;
+  if (a === "mountain" || a === "valley") return 2;
+  return 1;
+};
+
+const pairKey = (a: string, b: string): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+/**
+ * Absorb `fromId` into `keepId`: rewire incident creases onto the survivor,
+ * drop the self-loop that joined the pair, collapse duplicate edges, and
+ * remove `fromId`. The kept vertex's position is unchanged — callers that
+ * drag-to-merge should move `fromId` onto `keepId` first (or not: the
+ * absorbed vertex's coordinates are discarded either way).
+ *
+ * Pure and idempotent: same ids or a missing vertex returns `doc` as-is.
+ */
+export const mergeVertices = (
+  doc: OrigamiDocument,
+  keepId: string,
+  fromId: string,
+): OrigamiDocument => {
+  if (keepId === fromId) return doc;
+  if (
+    !doc.vertices.some((v) => v.id === keepId) ||
+    !doc.vertices.some((v) => v.id === fromId)
+  ) {
+    return doc;
+  }
+
+  type Tagged = { crease: Crease; belongedToKeep: boolean };
+  const byPair = new Map<string, Tagged>();
+
+  for (const crease of doc.creases) {
+    const belongedToKeep =
+      crease.startVertexId === keepId || crease.endVertexId === keepId;
+    const start = crease.startVertexId === fromId ? keepId : crease.startVertexId;
+    const end = crease.endVertexId === fromId ? keepId : crease.endVertexId;
+    if (start === end) continue; // the edge that joined keep ↔ from
+
+    const key = pairKey(start, end);
+    const candidate: Crease = { ...crease, startVertexId: start, endVertexId: end };
+    const existing = byPair.get(key);
+    if (!existing) {
+      byPair.set(key, { crease: candidate, belongedToKeep });
+      continue;
+    }
+    const incomingRank = assignmentRank(candidate.assignment);
+    const existingRank = assignmentRank(existing.crease.assignment);
+    if (
+      incomingRank > existingRank ||
+      (incomingRank === existingRank && belongedToKeep && !existing.belongedToKeep)
+    ) {
+      byPair.set(key, { crease: candidate, belongedToKeep });
+    }
+  }
+
+  return {
+    ...doc,
+    vertices: doc.vertices.filter((v) => v.id !== fromId),
+    creases: [...byPair.values()].map((t) => t.crease),
+  };
+};
+
+/**
+ * Set mixed assignments in one snapshot (one undo step). Creases not in
+ * `updates` are left alone. Unknown ids are ignored.
+ */
+export const applyCreaseAssignments = (
+  doc: OrigamiDocument,
+  updates: ReadonlyArray<{ creaseId: string; assignment: CreaseAssignment }>,
+): OrigamiDocument => {
+  if (updates.length === 0) return doc;
+  const map = new Map(updates.map((u) => [u.creaseId, u.assignment]));
+  return {
+    ...doc,
+    creases: doc.creases.map((c) => {
+      const next = map.get(c.id);
+      return next !== undefined ? { ...c, assignment: next } : c;
+    }),
+  };
+};
+
 export interface SplitCreaseResult {
   doc: OrigamiDocument;
   vertex: Vertex;

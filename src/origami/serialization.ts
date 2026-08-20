@@ -12,6 +12,8 @@ import {
   type CreaseAssignment,
   type OrigamiDocument,
 } from "./model";
+import { foldToDocument, isFoldDocument } from "./foldFormat";
+import { planarizeDocument } from "./planarize";
 
 const ASSIGNMENTS: readonly CreaseAssignment[] = [
   "mountain",
@@ -112,3 +114,35 @@ export const parseDocument = (json: string): OrigamiDocument => {
   }
   return doc;
 };
+
+/**
+ * Parse either native `.origami.json` or a FOLD file. Does not planarize —
+ * use `ingestImportedDocument` when loading into the editor so crossings
+ * gain vertices the same way a drawn crease would.
+ */
+export const parseImportedDocument = (json: string): OrigamiDocument => {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    throw new DocumentParseError("Not valid JSON.");
+  }
+  if (isFoldDocument(raw)) {
+    try {
+      return foldToDocument(raw);
+    } catch (error) {
+      throw new DocumentParseError(
+        error instanceof Error ? error.message : "Could not read that FOLD file.",
+      );
+    }
+  }
+  return parseDocument(json);
+};
+
+/**
+ * Load path for untrusted files: parse, then planarize so the editor never
+ * holds creases that cross without a shared vertex. Native documents that
+ * are already planar come back as the same object (planarize is idempotent).
+ */
+export const ingestImportedDocument = (json: string): OrigamiDocument =>
+  planarizeDocument(parseImportedDocument(json));

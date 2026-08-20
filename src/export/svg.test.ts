@@ -12,9 +12,11 @@ describe("documentToSvg", () => {
   });
 
   it("renders every crease and vertex", () => {
-    expect(svg.match(/<line /g)).toHaveLength(12);
+    expect(svg.match(/<line /g)).toHaveLength(15); // 12 creases + 3 legend swatches
     // 12 pattern vertices as circles.
     expect(svg.match(/<circle /g)).toHaveLength(12);
+    expect(svg).toContain(">Mountain</text>");
+    expect(svg).toContain(">Valley</text>");
   });
 
   it("distinguishes mountain and valley by dash pattern, not just color", () => {

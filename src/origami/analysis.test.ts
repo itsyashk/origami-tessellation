@@ -192,3 +192,65 @@ describe("document analysis", () => {
     expect(vertexMap(doc).size).toBe(doc.vertices.length);
   });
 });
+
+describe("big-little-big", () => {
+  it("validates the square twist's unique 45° sectors", () => {
+    const analysis = analyzeDocument(squareTwist());
+    for (const v of analysis.byVertex.values()) {
+      if (!v.isInterior) continue;
+      expect(v.bigLittleBig.status).toBe("valid");
+      expect(v.bigLittleBig.littleSectorIndices).toHaveLength(1);
+    }
+  });
+
+  it("stays quiet when every sector equals its neighbors", () => {
+    const a = centerAnalysis(
+      buildStar([0, 90, 180, 270], ["mountain", "mountain", "mountain", "valley"]),
+    );
+    expect(a.bigLittleBig.status).toBe("not-applicable");
+    expect(a.bigLittleBig.explanation).toMatch(/does not constrain/i);
+  });
+
+  it("flags a little sector bounded by two mountains", () => {
+    // Sectors 90/135/90/45 — the 45° sector sits between 315° and 0°.
+    const a = centerAnalysis(
+      buildStar([0, 90, 225, 315], ["mountain", "valley", "valley", "mountain"]),
+    );
+    expect(a.kawasaki.status).toBe("valid");
+    expect(a.bigLittleBig.status).toBe("invalid");
+    expect(a.locallyFlatFoldable).toBe(false);
+  });
+
+  it("stays open while the little sector's bounds can still be opposite", () => {
+    const a = centerAnalysis(
+      buildStar([0, 90, 225, 315], ["unassigned", "mountain", "mountain", "unassigned"]),
+    );
+    expect(a.bigLittleBig.status).toBe("not-applicable");
+    expect(a.bigLittleBig.explanation).toMatch(/still unassigned/);
+  });
+});
+
+describe("degree-4 layer order", () => {
+  it("reports a determined tuck at the square twist corners", () => {
+    const a = analyzeDocument(squareTwist()).byVertex.get("sq_a")!;
+    expect(a.layerOrder.status).toBe("valid");
+    expect(a.layerOrder.littleSectorIndex).not.toBeNull();
+    expect(a.layerOrder.coveringCreaseId).toBeTruthy();
+    expect(a.layerOrder.explanation).toMatch(/tucks/);
+  });
+
+  it("is not determined when all four sectors are equal", () => {
+    const a = centerAnalysis(
+      buildStar([0, 90, 180, 270], ["mountain", "mountain", "mountain", "valley"]),
+    );
+    expect(a.layerOrder.status).toBe("not-applicable");
+    expect(a.layerOrder.explanation).toMatch(/not determined/);
+  });
+
+  it("is invalid when the little sector's bounds share an assignment", () => {
+    const a = centerAnalysis(
+      buildStar([0, 90, 225, 315], ["mountain", "valley", "valley", "mountain"]),
+    );
+    expect(a.layerOrder.status).toBe("invalid");
+  });
+});

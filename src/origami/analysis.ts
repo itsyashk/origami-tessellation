@@ -21,6 +21,11 @@ import {
   FOLDABILITY_ANGLE_TOLERANCE,
   FOLDABILITY_NEAR_TOLERANCE,
 } from "@/geometry/tolerance";
+import {
+  analyzeBigLittleBig,
+  type BigLittleBigAnalysis,
+} from "./bigLittleBig";
+import { analyzeLayerOrder, type LayerOrderAnalysis } from "./layerOrder";
 
 export type TheoremStatus =
   | "valid" //     satisfied within tolerance
@@ -66,6 +71,8 @@ export interface VertexAnalysis {
   isInterior: boolean;
   kawasaki: KawasakiAnalysis;
   maekawa: MaekawaAnalysis;
+  bigLittleBig: BigLittleBigAnalysis;
+  layerOrder: LayerOrderAnalysis;
   /**
    * True when every applicable local condition holds. This is a convenience
    * roll-up; consumers needing detail should read the individual analyses.
@@ -261,16 +268,32 @@ export const analyzeVertex = (
   const isInterior = !isOnPaperBoundary(doc.paper, vertex);
   const kawasaki = analyzeKawasaki(vertex, creases, vertices, isInterior);
   const maekawa = analyzeMaekawa(creases, isInterior);
+  const bigLittleBig = analyzeBigLittleBig(
+    creases,
+    kawasaki.sectorAngles,
+    kawasaki.sortedCreaseIds,
+    isInterior,
+  );
+  const layerOrder = analyzeLayerOrder(
+    creases,
+    kawasaki.sectorAngles,
+    kawasaki.sortedCreaseIds,
+    isInterior,
+  );
   const locallyFlatFoldable =
     !isInterior ||
     creases.length === 0 ||
-    (kawasaki.status === "valid" && maekawa.status !== "invalid");
+    (kawasaki.status === "valid" &&
+      maekawa.status !== "invalid" &&
+      bigLittleBig.status !== "invalid");
   return {
     vertexId: vertex.id,
     degree: creases.length,
     isInterior,
     kawasaki,
     maekawa,
+    bigLittleBig,
+    layerOrder,
     locallyFlatFoldable,
   };
 };
@@ -300,7 +323,8 @@ export const analyzeDocument = (doc: OrigamiDocument): DocumentAnalysis => {
       interiorVertexCount++;
       const k = analysis.kawasaki.status;
       const m = analysis.maekawa.status;
-      if (k === "invalid" || m === "invalid") invalidVertexCount++;
+      const b = analysis.bigLittleBig.status;
+      if (k === "invalid" || m === "invalid" || b === "invalid") invalidVertexCount++;
       else if (k === "near") nearVertexCount++;
       else if (k === "valid") validVertexCount++;
     }

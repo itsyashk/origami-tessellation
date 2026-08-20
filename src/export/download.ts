@@ -2,6 +2,7 @@
 
 import type { OrigamiDocument } from "@/origami/model";
 import { serializeDocument } from "@/origami/serialization";
+import { serializeFold } from "@/origami/foldFormat";
 import { documentToSvg } from "./svg";
 
 const triggerDownload = (blob: Blob, filename: string): void => {
@@ -32,5 +33,12 @@ export const downloadSvg = (doc: OrigamiDocument): void => {
   triggerDownload(
     new Blob([documentToSvg(doc)], { type: "image/svg+xml" }),
     `${safeFilename(doc.name)}.svg`,
+  );
+};
+
+export const downloadFold = (doc: OrigamiDocument): void => {
+  triggerDownload(
+    new Blob([serializeFold(doc)], { type: "application/json" }),
+    `${safeFilename(doc.name)}.fold`,
   );
 };

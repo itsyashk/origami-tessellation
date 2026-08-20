@@ -13,6 +13,7 @@ export interface SvgExportOptions {
   scale?: number;
   margin?: number;
   showVertices?: boolean;
+  showLegend?: boolean;
 }
 
 interface StrokeStyle {
@@ -38,12 +39,15 @@ export const documentToSvg = (
   doc: OrigamiDocument,
   options: SvgExportOptions = {},
 ): string => {
-  const { scale = 4, margin = 20, showVertices = true } = options;
-  const w = doc.paper.width * scale + margin * 2;
-  const h = doc.paper.height * scale + margin * 2;
-  // Paper space is y-up; SVG is y-down.
+  const { scale = 4, margin = 20, showVertices = true, showLegend = true } = options;
+  const legendH = showLegend ? 22 : 0;
+  const paperW = doc.paper.width * scale;
+  const paperH = doc.paper.height * scale;
+  const w = paperW + margin * 2;
+  const h = paperH + margin * 2 + legendH;
+  // Paper space is y-up; SVG is y-down. Legend sits in the extra bottom band.
   const px = (x: number) => margin + x * scale;
-  const py = (y: number) => h - margin - y * scale;
+  const py = (y: number) => margin + paperH - y * scale;
 
   const vmap = vertexMap(doc);
   const lines: string[] = [];
@@ -53,7 +57,7 @@ export const documentToSvg = (
     `  <title>${esc(doc.name)}</title>`,
     `  <desc>Origami crease pattern. Mountain folds: dash-dot. Valley folds: dashed.</desc>`,
     `  <rect x="0" y="0" width="${w}" height="${h}" fill="#faf6ef"/>`,
-    `  <rect x="${margin}" y="${margin}" width="${doc.paper.width * scale}" height="${doc.paper.height * scale}" fill="#ffffff" stroke="#2b2a28" stroke-width="2"/>`,
+    `  <rect x="${margin}" y="${margin}" width="${paperW}" height="${paperH}" fill="#ffffff" stroke="#2b2a28" stroke-width="2"/>`,
   );
 
   for (const crease of doc.creases) {
@@ -73,6 +77,25 @@ export const documentToSvg = (
         `  <circle cx="${fmt(px(v.x))}" cy="${fmt(py(v.y))}" r="2.5" fill="#2b2a28"/>`,
       );
     }
+  }
+
+  if (showLegend) {
+    const ly = h - 8;
+    const swatch = (
+      x: number,
+      label: string,
+      color: string,
+      dash: string | null,
+    ) => {
+      const dashAttr = dash ? ` stroke-dasharray="${dash}"` : "";
+      lines.push(
+        `  <line x1="${x}" y1="${ly}" x2="${x + 18}" y2="${ly}" stroke="${color}" stroke-width="1.6"${dashAttr} stroke-linecap="round"/>`,
+        `  <text x="${x + 22}" y="${ly + 3.5}" font-size="10" font-family="sans-serif" fill="#5f5b54">${label}</text>`,
+      );
+    };
+    swatch(margin, "Mountain", "#d6453d", "8 3 1.5 3");
+    swatch(margin + 90, "Valley", "#1d7fd6", "6 4");
+    swatch(margin + 165, "Unassigned", "#8a857c", null);
   }
 
   lines.push("</svg>");

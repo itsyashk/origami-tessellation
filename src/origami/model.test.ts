@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   addCrease,
   addVertex,
+  applyCreaseAssignments,
   deleteGeometry,
   emptyDocument,
   findCreaseBetween,
   isOnPaperBoundary,
+  mergeVertices,
   moveVertex,
   setCreaseAssignment,
   validateDocument,
@@ -80,6 +82,68 @@ describe("document operations", () => {
   it("refuses creases whose endpoints don't exist", () => {
     const { doc } = addVertex(emptyDocument(), { x: 0, y: 0 }, "a");
     expect(() => addCrease(doc, "a", "ghost")).toThrow(/existing/);
+  });
+});
+
+describe("mergeVertices", () => {
+  it("rewires incident creases onto the surviving vertex", () => {
+    let doc = emptyDocument();
+    doc = addVertex(doc, { x: 0, y: 0 }, "keep").doc;
+    doc = addVertex(doc, { x: 10, y: 0 }, "from").doc;
+    doc = addVertex(doc, { x: 20, y: 0 }, "other").doc;
+    doc = addCrease(doc, "from", "other", "mountain").doc;
+
+    const merged = mergeVertices(doc, "keep", "from");
+    expect(merged.vertices.find((v) => v.id === "from")).toBeUndefined();
+    expect(merged.vertices.find((v) => v.id === "keep")).toBeDefined();
+    expect(findCreaseBetween(merged, "keep", "other")?.assignment).toBe("mountain");
+    expect(findCreaseBetween(merged, "from", "other")).toBeUndefined();
+    expect(validateDocument(merged)).toEqual([]);
+    expect(doc.vertices).toHaveLength(3); // immutable
+  });
+
+  it("drops the self-loop that joined the pair", () => {
+    let doc = emptyDocument();
+    doc = addVertex(doc, { x: 0, y: 0 }, "a").doc;
+    doc = addVertex(doc, { x: 10, y: 0 }, "b").doc;
+    doc = addCrease(doc, "a", "b", "valley").doc;
+    const merged = mergeVertices(doc, "a", "b");
+    expect(merged.creases).toHaveLength(0);
+    expect(merged.vertices).toHaveLength(1);
+  });
+
+  it("collapses duplicate edges and prefers an assigned fold", () => {
+    let doc = emptyDocument();
+    doc = addVertex(doc, { x: 0, y: 0 }, "keep").doc;
+    doc = addVertex(doc, { x: 0, y: 0 }, "from").doc;
+    doc = addVertex(doc, { x: 40, y: 0 }, "tip").doc;
+    doc = addCrease(doc, "keep", "tip", "unassigned").doc;
+    doc = addCrease(doc, "from", "tip", "mountain").doc;
+
+    const merged = mergeVertices(doc, "keep", "from");
+    expect(merged.creases).toHaveLength(1);
+    expect(merged.creases[0].assignment).toBe("mountain");
+    expect(merged.creases[0].startVertexId === "keep" || merged.creases[0].endVertexId === "keep").toBe(
+      true,
+    );
+  });
+
+  it("is a no-op when the ids match or a vertex is missing", () => {
+    const { doc, vertex } = addVertex(emptyDocument(), { x: 1, y: 1 }, "a");
+    expect(mergeVertices(doc, vertex.id, vertex.id)).toBe(doc);
+    expect(mergeVertices(doc, vertex.id, "ghost")).toBe(doc);
+  });
+
+  it("applies mixed assignments in one snapshot", () => {
+    const doc = squareTwist();
+    const [a, b] = doc.creases;
+    const next = applyCreaseAssignments(doc, [
+      { creaseId: a.id, assignment: "valley" },
+      { creaseId: b.id, assignment: "unassigned" },
+    ]);
+    expect(next.creases.find((c) => c.id === a.id)?.assignment).toBe("valley");
+    expect(next.creases.find((c) => c.id === b.id)?.assignment).toBe("unassigned");
+    expect(doc.creases.find((c) => c.id === a.id)?.assignment).toBe(a.assignment);
   });
 });
 

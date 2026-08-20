@@ -29,13 +29,14 @@ describe("pattern library", () => {
 
       it("is fully flat-foldable at every interior vertex", () => {
         const analysis = analyzeDocument(doc);
-        const broken = [...analysis.byVertex.values()].filter(
+          const broken = [...analysis.byVertex.values()].filter(
           (v) =>
             v.isInterior &&
             v.degree >= 2 &&
             (v.kawasaki.status === "invalid" ||
               v.kawasaki.status === "near" ||
-              v.maekawa.status === "invalid"),
+              v.maekawa.status === "invalid" ||
+              v.bigLittleBig.status === "invalid"),
         );
         expect(
           broken.map((v) => ({
