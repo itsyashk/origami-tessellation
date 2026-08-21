@@ -365,3 +365,25 @@ easy to overclaim.
 
 **Reconsider when.** A restricted family (single-vertex, degree-4 maps, known
 tessellation cells) has a complete local-to-global story worth shipping.
+
+---
+
+### Construction symmetry is session-baked copies, not a document field
+
+**Decision.** 2-fold / 4-fold rotation and axial mirrors (`mx` left–right, `my`
+up–down) live in `editorStore.symmetry`. Images are ordinary vertices and
+creases around the paper centre. Enabling a mode runs `completeSymmetry` once;
+later edits orbit only the geometry that changed. Mid-drag uses `moveOrbit`
+only — never `completeSymmetry` per frame.
+
+**Reason.** The document model stays vertices+creases (Swift-portable, JSON/
+FOLD round-trip unchanged). The square twist is already 4-fold around
+(100,100), so enabling the mode is a no-op. Per-edit orbits avoid exploding a
+tiled pattern the next time the user places a vertex. 4-fold is well-defined
+on the default square sheet; copies that leave non-square paper after Repeat
+are clamped.
+
+**Reconsider when.** Wallpaper groups, a live constraint solver, or a native
+document-level symmetry record is actually needed for export (Oripa / FOLD
+`frame_classes`). Unit-cell edge-matching is the remaining M3 tessellation
+slice and is still later.

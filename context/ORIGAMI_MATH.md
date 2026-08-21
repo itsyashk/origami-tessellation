@@ -155,8 +155,12 @@ reports "flat-foldable" per vertex, never "this pattern folds".
   faces may still pass through each other.
 
 Planarization (`planarize.ts`) and face extraction (`faces.ts`) **are**
-implemented: creases that cross gain a shared vertex at commit points and on
-import; the fold preview builds faces from that graph.
+implemented: coincident vertices fuse; creases that cross gain a shared vertex
+at commit points and on import; the fold preview builds faces from that graph.
+
+Construction symmetry (`symmetry.ts`) is geometric copying about the paper
+centre, not a theorem. Local Kawasaki/Maekawa/BLB still run on every vertex,
+including the copies.
 
 ## Reference construction: the square twist
 

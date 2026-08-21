@@ -26,8 +26,12 @@ Small, well-understood pieces that remove friction before any new mathematics.
 
 ## M3 — Symmetry and true tessellations
 
-- Symmetry tools: mirror axes and rotational orders, with edits propagating to all
-  symmetric copies live.
+- ~~Symmetry tools: mirror axes and rotational orders, with edits propagating to all
+  symmetric copies live.~~ **Done (one deep slice).** Session modes `c2` / `c4` /
+  `mx` / `my` about the paper centre (`src/origami/symmetry.ts`). Copies bake into
+  the vertex/crease arrays; the document has no symmetry field. Drag uses
+  `moveOrbit`; commits use `ensure*Orbit` so Repeat then placing a vertex does
+  not re-copy the whole tessellation.
 - Unit cells with **edge-matching constraints** — a real tessellation primitive
   replacing today's bounding-box repeat, which only translates and merges
   coincident points.
@@ -37,8 +41,7 @@ Small, well-understood pieces that remove friction before any new mathematics.
 
 Prerequisite: vertex merge on drop is done, so tiled patterns can fuse
 coincident vertices instead of leaving unconnected stacks. Remaining for a
-true tessellation primitive: unit-cell edge-matching (pick this) **or**
-symmetry tools — one deep slice, not both half-done. Parameterized twist
+true tessellation primitive: unit-cell edge-matching. Parameterized twist
 generators already live in `src/origami/patterns/`.
 
 ## M4 — Folded state *(largely done)*

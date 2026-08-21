@@ -31,12 +31,16 @@ All px constants are converted to paper units with `screenLengthToPaper(vp, px)`
     selection unless shift is held.
 - **Drag** — once the pointer moves ≥ 4px from the press point, the gesture
   promotes to `drag-vertex`: `beginPreview()` snapshots the document, then every
-  move calls `preview(moveVertex(...))` with the snapped position. No history is
-  written mid-drag.
+  move calls `preview(moveVertex(...))` (or `moveOrbit` when construction
+  symmetry is on) with the snapped position. No history is written mid-drag.
+  The dragged vertex's orbit is excluded from merge-snap so copies don't
+  collapse onto each other.
 - **Pointer up** → merge if the dropped vertex coincides with another (within
   `INCIDENCE_EPSILON`), then planarize, then `commitPreview()`: one undo step
   covering the whole drag. Undo reverses the drag, the merge, and any
-  subdivision together.
+  subdivision together. If construction symmetry is on, the drag uses
+  `moveOrbit` (copies move with the group); planarize then fuses any copies
+  that landed on existing vertices.
 - **Hover** (no button) sets `hovered` for vertex/crease highlight.
 - **Marquee** — empty-canvas drag draws a rubber-band in screen space; on
   release, vertices inside the paper AABB are selected, and creases whose both
@@ -45,10 +49,15 @@ All px constants are converted to paper units with `screenLengthToPaper(vp, px)`
 ### Vertex (`P`)
 
 - **Click** places a vertex at the snapped position and selects it.
+- **Enter** places a vertex at the pointer (or the paper centre if the
+  pointer has left the canvas).
 - Clicking an existing vertex (vertex snap) only selects it — no duplicate.
 - Clicking on a crease (on-crease snap) **splits** that crease: the crease is
   replaced by two halves that inherit its assignment, with the new vertex between.
 - Positions are clamped to the paper rect. Each placement is one undo step.
+- With construction symmetry on, the new vertex's orbit is filled in the same
+  undo step (`ensureVertexOrbit` + planarize). Existing unrelated geometry is
+  not re-copied.
 
 ### Crease (`C`)
 
@@ -62,6 +71,7 @@ Both gesture styles are supported and interchangeable:
   endpoint, so a polyline is a sequence of clicks.
 - **Escape** cancels the draft and rolls back any vertex/split created for it
   (the draft runs inside a preview transaction).
+- **Enter** completes the draft at the pointer (or the current rubber-band end).
 - Each endpoint is resolved by `resolveEndpoint()`: existing vertex under the snap
   or within 10px → reuse; snapped onto a crease → split it; otherwise → new vertex
   clamped to the paper.
@@ -72,6 +82,8 @@ Both gesture styles are supported and interchangeable:
   every crease it crosses split at their intersection points (shared junction
   vertices), and any loose vertex lying on its path is joined into it. All within
   the same undo step. See the planarization entry in `DECISIONS.md`.
+- With construction symmetry on, only this crease's orbit is filled
+  (`ensureCreaseOrbit`) — the rest of the pattern is not re-copied.
 - While a draft is active, angle snapping is enabled with the draft's start vertex
   as origin (15° steps, labelled e.g. "45°").
 
@@ -79,7 +91,26 @@ Both gesture styles are supported and interchangeable:
 
 - Drag pans. Available in every tool via middle mouse button or holding `Space`.
 
-### Viewport (any tool)
+### Construction symmetry (session)
+
+Mode lives in `editorStore.symmetry` (`off` | `c2` | `c4` | `mx` | `my`), never
+on the document. Copies are ordinary vertices and creases around the **paper
+centre**. Enabling a mode runs `completeSymmetry` + planarize once (idempotent
+on a pattern that already has the symmetry). While a mode is on:
+
+- Place vertex / complete crease / inspector edits / delete / assign / nudge
+  orbit only the geometry that just changed (`ensureVertexOrbit` /
+  `ensureCreaseOrbit` / `moveOrbit` / `deleteOrbit` / `assignOrbit`).
+- Vertex drag uses `moveOrbit` every frame and does **not** call
+  `completeSymmetry` (that would spawn vertices per pointer move). Drop still
+  planarizes (fuse + split).
+- 4-fold assumes square paper; images that fall outside the sheet are clamped.
+- Repeat/tile does not re-copy the whole tessellation; only later construction
+  edits orbit the new pieces.
+
+Dashed cyan axes (`SymmetryGuideLayer`) mark the centre while a mode is on.
+
+## Viewport (any tool)
 
 - **Wheel** zooms about the cursor: `zoom *= exp(-deltaY * 0.0015)`, anchored so
   the paper point under the pointer stays put (`zoomAt`). The listener is attached
@@ -127,12 +158,14 @@ Kawasaki), and the label. `StatusBar` echoes the label or the snap kind.
 | Key | Action |
 | --- | --- |
 | `V` `P` `C` `H` | Select / Vertex / Crease / Pan (cancels any in-flight gesture) |
-| `1` `2` `3` | Assign selected creases mountain / valley / unassigned |
+| `1` `2` `3` | Assign selected creases mountain / valley / unassigned (no Shift) |
+| `Shift+2` `Shift+4` `Shift+0` | 2-fold / 4-fold construction symmetry / off |
+| `Enter` | Vertex tool: place at pointer (or paper centre). Crease draft: complete |
 | `Ctrl`/`Cmd` `Z` | Undo (with `Shift` → redo) |
 | `Ctrl`/`Cmd` `Y` | Redo |
-| `Arrow` keys | Nudge selected vertices 1 paper unit (Shift = 10); paper space is y-up |
+| `Arrow` keys | Nudge selected vertices 1 paper unit (Shift = 10); paper space is y-up. With symmetry on, the orbit moves as a group |
 | `Ctrl`/`Cmd` `A` | Select every vertex and crease |
-| `Delete` / `Backspace` | Delete selection (deleting a vertex deletes its creases) |
+| `Delete` / `Backspace` | Delete selection (deleting a vertex deletes its creases; with symmetry on, the orbit goes too) |
 | `Escape` | Cancel gesture + clear selection |
 | `Space` (hold) | Temporary pan |
 

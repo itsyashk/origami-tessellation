@@ -95,8 +95,9 @@ visual work and to catch hydration/runtime errors that tests would not surface.
 
 ## Closed loop — web V1 (2026-08-20)
 
-Evidence from a Windows host after M2 completion. Commands below are the
-gate; do not treat this section as a substitute for re-running them.
+Evidence from a Windows host after M2 completion, updated 2026-08-20 after the
+M3 construction-symmetry slice. Commands below are the gate; do not treat this
+section as a substitute for re-running them.
 
 ### Automated
 
@@ -104,8 +105,8 @@ gate; do not treat this section as a substitute for re-running them.
 | --- | --- |
 | `npm run typecheck` | pass |
 | `npm run lint` | pass |
-| `npm test` | 16 files, **269** tests pass |
-| `npm run e2e` | **15** pass, 14 skip (mobile skips of desktop flows + desktop skip of the mobile smoke) |
+| `npm test` | 17 files, **279** tests pass |
+| `npm run e2e` | **19** pass, 18 skip (mobile skips of desktop flows + desktop skip of the mobile smoke) |
 | `npm run verify` | green |
 | `npm run build` | Next.js 16.3.1 production compile OK |
 | `npm start` on port 3001 | HTTP 200 |
@@ -121,11 +122,13 @@ gate; do not treat this section as a substitute for re-running them.
 | Draw crease + assign M/V | e2e `full loop` |
 | Undo/redo restores | e2e `full loop` (5 undo / 5 redo) |
 | Repeat/tile without corrupting topology | e2e `repeat tiles the pattern into a grid` (48 creases) |
-| Export SVG + JSON; JSON round-trip | e2e full loop downloads; unit `parseDocument` round-trip; FOLD e2e `exports a FOLD file` |
+| Construction symmetry | e2e `4-fold symmetry copies a placed vertex and drags the orbit`; enabling on Square Twist stays `12 vertices · 12 creases` |
+| Export SVG + JSON; JSON round-trip | e2e full loop downloads; e2e `re-imports an exported JSON file`; unit `parseDocument` round-trip; FOLD e2e `exports a FOLD file` |
 | Fold preview (F), honest about stacking | e2e fold preview + `fold-layer-note` visible |
 | Vertex merge / marquee | e2e `dropping a vertex onto another merges them`, `marquee selects vertices inside the rubber-band` |
+| Enter to place | e2e `Enter places a vertex at the pointer` |
 
-JSON *re-import* in the browser is the same `ingestImportedDocument` path covered by unit tests (planarize-on-open) rather than a Playwright file-chooser. Native JSON parse remains byte-faithful; the editor load path planarizes.
+JSON *re-import* in the browser is covered by Playwright (`re-imports an exported JSON file` via `data-testid="import-file"`) as well as unit tests of `ingestImportedDocument` (planarize-on-open). Native JSON parse remains byte-faithful; the editor load path planarizes.
 
 ### Not P0/P1
 
@@ -134,8 +137,8 @@ JSON *re-import* in the browser is the same `ingestImportedDocument` path covere
 - Safari/WebKit e2e (iPhone *metrics* on Chromium; no Xcode here).
 - PWA “Add to Home Screen” not started.
 
-### Next (M3+)
+### Next (M3 remaining / M4+)
 
-Unit-cell edge-matching **or** symmetry tools — one deep slice. Parameterized
+Unit-cell edge-matching (the remaining tessellation primitive). Parameterized
 twist generators already exist in `src/origami/patterns/`. Native iOS stays in
 `IOS.md`.

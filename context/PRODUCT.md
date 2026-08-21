@@ -39,7 +39,7 @@ malformed imported file.
 | Analysis | Per-vertex Kawasaki (signed residual in degrees), Maekawa (M−V, incl. partial-assignment satisfiability), big-little-big, degree-4 local layer order; document roll-up counts |
 | Snapping | Existing vertex (merge on drop) → Kawasaki locus → 15° angle ray → axis alignment → point-on-crease → 10-unit grid |
 | Assignment | Mountain / valley / unassigned via inspector or keys `1` `2` `3`; `boundary` exists in the model for FOLD compatibility; inspector can apply Maekawa/BLB suggestions |
-| Tessellation | "Repeat" tiles the selection (or whole pattern) in a rows × columns grid, merging coincident vertices and growing the paper |
+| Tessellation | "Repeat" tiles the selection (or whole pattern) in a rows × columns grid, merging coincident vertices and growing the paper. Construction symmetry (2-fold / 4-fold / axial mirrors about the paper centre) bakes copies into the pattern while you draw |
 | History | Snapshot undo/redo, 200 steps; one gesture = one step |
 | Files | Built-in pattern library, JSON and FOLD import (planarized on open), `.origami.json`, `.fold`, and `.svg` export |
 | Viewport | Wheel zoom at cursor, pinch, middle/space drag pan, fit-to-paper, zoom readout |
@@ -53,10 +53,10 @@ something to drag, and analysis is visibly alive, in the first second.
 
 Roughly in the order they become interesting (see `ROADMAP.md` for milestones):
 
-- **Tessellations proper** — unit cells, edge-matching constraints, symmetry groups,
+- **Tessellations proper** — unit cells, edge-matching constraints,
   rather than today's bounding-box repeat.
-- **Symmetry tools** — mirror/rotational construction where one edit updates all
-  symmetric copies.
+- **Richer symmetry** — wallpaper groups beyond 2-fold / 4-fold / axial
+  mirrors; live constraints instead of baked copies.
 - **Global flat-foldability** — beyond local Kawasaki / Maekawa / big-little-big:
   self-intersection in the folded state; suggest edits that make a pattern foldable.
 - **Inverse design** — describe a target shape, get a crease pattern.

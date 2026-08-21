@@ -49,7 +49,11 @@ priority order).
 - `kawasakiSnap.ts` — the "snap to flat-foldable" solver.
 - `bigLittleBig.ts` / `layerOrder.ts` / `suggestAssignment.ts` — local lemmas
   and assignment enumeration.
-- `planarize.ts` — incidence-completion to fixpoint.
+- `planarize.ts` — incidence-completion to fixpoint (fuse coincident vertices,
+  split vertex-on-crease, split crossings).
+- `symmetry.ts` — session construction symmetry (2-fold / 4-fold / axial
+  mirrors). Copies bake into the vertex/crease arrays; the document has no
+  symmetry field.
 - `foldFormat.ts` — FOLD mapping; `serialization.ts` `ingestImportedDocument`
   planarizes after parse.
 - `tiling.ts` — motif repetition.
@@ -71,7 +75,8 @@ priority order).
 
 - `documentStore.ts` — the document + snapshot undo/redo + preview transactions.
 - `editorStore.ts` — session state that is never serialized: tool, selection,
-  hover, viewport, crease draft, active snap, dragged vertex, pointer position.
+  hover, viewport, crease draft, active snap, dragged vertex, pointer position,
+  marquee, construction-symmetry mode.
 - `useAnalysis.ts` — derivation with a `WeakMap<OrigamiDocument, DocumentAnalysis>`
   cache. Because every edit produces a new document object, the cache key is free
   and correct: any number of components can call `useAnalysis()` and the analysis
