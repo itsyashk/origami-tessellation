@@ -35,6 +35,19 @@ import {
 } from "@/origami/model";
 import { findKawasakiSnap } from "@/origami/kawasakiSnap";
 import { INCIDENCE_EPSILON, planarizeDocument } from "@/origami/planarize";
+import {
+  assignOrbit,
+  deleteOrbit,
+  documentWithSymmetry,
+  ensureCreaseOrbit,
+  ensureVertexOrbit,
+  moveOrbit,
+  orbitVertexIds,
+  paperCenter,
+  specFromKind,
+  type SymmetryMode,
+  type SymmetrySpec,
+} from "@/origami/symmetry";
 import { hitTest } from "./hitTest";
 import { paperRectFromScreenBox, selectInPaperRect } from "./marquee";
 import { panBy, screenLengthToPaper, screenToPaper, zoomAt } from "./viewport";
@@ -147,6 +160,52 @@ export class EditorController {
     });
   }
 
+  private symmetrySpec(): SymmetrySpec | null {
+    return specFromKind(this.editor.symmetry, this.docStore.doc.paper);
+  }
+
+  private afterVertexAdded(doc: OrigamiDocument, vertexId: string): OrigamiDocument {
+    const spec = this.symmetrySpec();
+    const withOrbit = spec ? ensureVertexOrbit(doc, vertexId, spec) : doc;
+    return planarizeDocument(withOrbit);
+  }
+
+  private afterCreaseAdded(doc: OrigamiDocument, creaseId: string): OrigamiDocument {
+    const spec = this.symmetrySpec();
+    const withOrbit = spec ? ensureCreaseOrbit(doc, creaseId, spec) : doc;
+    return planarizeDocument(withOrbit);
+  }
+
+  /** Apply a construction-symmetry mode, filling missing copies once. */
+  setSymmetry(kind: SymmetryMode): void {
+    this.cancelGesture();
+    applySymmetryMode(kind);
+  }
+
+  private placeVertexAt(paper: Vec2): void {
+    const doc = this.docStore.doc;
+    const snap = this.snapForPlacement(paper);
+    const pos = snap ? snap.position : clampToPaper(doc.paper, paper);
+    if (snap?.kind === "vertex") {
+      this.editor.selectVertex(snap.vertexIds[0]);
+      return;
+    }
+    let next = doc;
+    let newId: string;
+    if (snap?.kind === "on-crease" && snap.creaseId) {
+      const result = splitCreaseAt(doc, snap.creaseId, snap.position);
+      next = result.doc;
+      newId = result.vertex.id;
+    } else {
+      const result = addVertex(doc, pos);
+      next = result.doc;
+      newId = result.vertex.id;
+    }
+    this.docStore.commit(this.afterVertexAdded(next, newId));
+    this.editor.selectVertex(newId);
+    hapticTick();
+  }
+
   // ------------------------------------------------------------- pointers
 
   pointerDown(screen: Vec2, ev: { pointerId: number; button: number; shiftKey: boolean; pointerType: string }): void {
@@ -206,27 +265,7 @@ export class EditorController {
     }
 
     if (tool === "vertex") {
-      const snap = this.snapForPlacement(paper);
-      const pos = snap ? snap.position : clampToPaper(doc.paper, paper);
-      // Clicking an existing vertex with the vertex tool just selects it.
-      if (snap?.kind === "vertex") {
-        this.editor.selectVertex(snap.vertexIds[0]);
-        return;
-      }
-      let next = doc;
-      let newId: string;
-      if (snap?.kind === "on-crease" && snap.creaseId) {
-        const result = splitCreaseAt(doc, snap.creaseId, snap.position);
-        next = result.doc;
-        newId = result.vertex.id;
-      } else {
-        const result = addVertex(doc, pos);
-        next = result.doc;
-        newId = result.vertex.id;
-      }
-      this.docStore.commit(next);
-      this.editor.selectVertex(newId);
-      hapticTick();
+      this.placeVertexAt(paper);
       return;
     }
 
@@ -461,12 +500,16 @@ export class EditorController {
   private dragVertexTo(vertexId: string, paperPos: Vec2): void {
     const doc = this.docStore.doc;
     const clamped = clampToPaper(doc.paper, paperPos);
+    const spec = this.symmetrySpec();
+    const excludeVertexIds = spec
+      ? orbitVertexIds(doc, vertexId, spec)
+      : [vertexId];
 
     let snap = computeSnap(doc, clamped, {
       vertices: true,
       alignments: true,
       gridSize: GRID_SIZE,
-      excludeVertexIds: [vertexId],
+      excludeVertexIds,
       tolerance: this.tolerance(SNAP_TOLERANCE_PX),
     });
 
@@ -501,7 +544,10 @@ export class EditorController {
     }
 
     const target = snap ? snap.position : clamped;
-    this.docStore.preview(moveVertex(doc, vertexId, target));
+    const next = spec
+      ? moveOrbit(doc, vertexId, target, spec)
+      : moveVertex(doc, vertexId, target);
+    this.docStore.preview(next);
     this.setSnap(snap);
   }
 
@@ -509,11 +555,14 @@ export class EditorController {
     const snap = this.snapForPlacement(paperPos);
     const pos = snap ? snap.position : clampToPaper(this.docStore.doc.paper, paperPos);
     const resolved = this.resolveEndpoint(this.docStore.doc, pos, snap);
-    if (resolved.doc !== this.docStore.doc) {
+    let next = resolved.doc;
+    const spec = this.symmetrySpec();
+    if (spec) next = ensureVertexOrbit(next, resolved.vertexId, spec);
+    if (next !== this.docStore.doc) {
       // Creating/splitting for the start point is part of the same gesture;
       // preview it so cancel (Escape) rolls everything back.
       this.docStore.beginPreview();
-      this.docStore.preview(resolved.doc);
+      this.docStore.preview(next);
     } else {
       this.docStore.beginPreview();
     }
@@ -547,8 +596,9 @@ export class EditorController {
     }
     const withCrease = addCrease(resolved.doc, draft.startVertexId, resolved.vertexId);
     // Auto-subdivide: the new crease and anything it crosses split at their
-    // intersection points, all within this one gesture/undo step.
-    this.docStore.preview(planarizeDocument(withCrease.doc));
+    // intersection points, all within this one gesture/undo step. Construction
+    // symmetry copies only this crease's orbit — not the rest of the pattern.
+    this.docStore.preview(this.afterCreaseAdded(withCrease.doc, withCrease.crease.id));
     this.docStore.commitPreview();
     hapticTick();
 
@@ -581,6 +631,7 @@ export class EditorController {
 
   keyDown(ev: {
     key: string;
+    code?: string;
     ctrlKey: boolean;
     metaKey: boolean;
     shiftKey: boolean;
@@ -588,6 +639,7 @@ export class EditorController {
   }): boolean {
     const mod = ev.ctrlKey || ev.metaKey;
     const key = ev.key;
+    const code = ev.code ?? "";
 
     // While an overlay is open it owns the keyboard (Radix handles Escape);
     // only its own toggle key closes it again.
@@ -653,9 +705,11 @@ export class EditorController {
     if (key === "Delete" || key === "Backspace") {
       const { vertexIds, creaseIds } = this.editor.selection;
       if (vertexIds.size === 0 && creaseIds.size === 0) return false;
-      this.docStore.commit(
-        deleteGeometry(this.docStore.doc, [...vertexIds], [...creaseIds]),
-      );
+      const spec = this.symmetrySpec();
+      const next = spec
+        ? deleteOrbit(this.docStore.doc, [...vertexIds], [...creaseIds], spec)
+        : deleteGeometry(this.docStore.doc, [...vertexIds], [...creaseIds]);
+      this.docStore.commit(planarizeDocument(next));
       this.editor.clearSelection();
       return true;
     }
@@ -673,18 +727,24 @@ export class EditorController {
       if (selected.length === 0) return false;
       const doc = this.docStore.doc;
       const step = ev.shiftKey ? 10 : 1;
+      const spec = this.symmetrySpec();
       let next = doc;
+      const moved = new Set<string>();
       for (const id of selected) {
+        if (moved.has(id)) continue;
         const vertex = next.vertices.find((v) => v.id === id);
         if (!vertex) continue;
-        next = moveVertex(
-          next,
-          id,
-          clampToPaper(doc.paper, {
-            x: vertex.x + nudge[key].x * step,
-            y: vertex.y + nudge[key].y * step,
-          }),
-        );
+        const target = clampToPaper(doc.paper, {
+          x: vertex.x + nudge[key].x * step,
+          y: vertex.y + nudge[key].y * step,
+        });
+        if (spec) {
+          for (const oid of orbitVertexIds(next, id, spec)) moved.add(oid);
+          next = moveOrbit(next, id, target, spec);
+        } else {
+          moved.add(id);
+          next = moveVertex(next, id, target);
+        }
       }
       this.docStore.commit(planarizeDocument(next));
       return true;
@@ -703,18 +763,50 @@ export class EditorController {
       return true;
     }
 
+    if (key === "Enter") {
+      const tool = this.editor.tool;
+      if (tool === "vertex") {
+        const pos =
+          this.editor.pointerPaper ?? paperCenter(this.docStore.doc.paper);
+        this.placeVertexAt(pos);
+        return true;
+      }
+      if (tool === "crease" && this.editor.creaseDraft) {
+        const draft = this.editor.creaseDraft;
+        this.completeCreaseDraft(this.editor.pointerPaper ?? draft.end);
+        return true;
+      }
+      return false;
+    }
+
     const assignmentByKey: Record<string, CreaseAssignment> = {
       "1": "mountain",
       "2": "valley",
       "3": "unassigned",
     };
+    if (!mod && ev.shiftKey) {
+      if (code === "Digit2" || key === "2") {
+        this.setSymmetry("c2");
+        return true;
+      }
+      if (code === "Digit4" || key === "4") {
+        this.setSymmetry("c4");
+        return true;
+      }
+      if (code === "Digit0" || key === "0") {
+        this.setSymmetry("off");
+        return true;
+      }
+    }
     const assignment = assignmentByKey[key];
-    if (!mod && assignment) {
+    if (!mod && !ev.shiftKey && assignment) {
       const ids = [...this.editor.selection.creaseIds];
       if (ids.length === 0) return false;
-      this.docStore.commit(
-        setCreaseAssignment(this.docStore.doc, ids, assignment),
-      );
+      const spec = this.symmetrySpec();
+      const next = spec
+        ? assignOrbit(this.docStore.doc, ids, assignment, spec)
+        : setCreaseAssignment(this.docStore.doc, ids, assignment);
+      this.docStore.commit(next);
       return true;
     }
 
@@ -730,3 +822,12 @@ export class EditorController {
     this.spaceHeld = false;
   }
 }
+
+/** Session helper for the Symmetry menu (no controller instance in the chrome). */
+export const applySymmetryMode = (kind: SymmetryMode): void => {
+  useEditorStore.getState().resetGesture();
+  useEditorStore.getState().setSymmetry(kind);
+  const store = useDocumentStore.getState();
+  const next = documentWithSymmetry(store.doc, kind);
+  if (next !== store.doc) store.commit(next);
+};

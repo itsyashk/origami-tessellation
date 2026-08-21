@@ -11,6 +11,7 @@ import { create } from "zustand";
 import type { Vec2 } from "@/geometry/vec2";
 import type { SnapHit } from "@/geometry/snap";
 import type { Viewport } from "@/editor/viewport";
+import type { SymmetryMode } from "@/origami/symmetry";
 import { useDocumentStore } from "./documentStore";
 
 export type ToolId = "select" | "vertex" | "crease" | "pan";
@@ -48,6 +49,8 @@ interface EditorState {
   pointerPaper: Vec2 | null;
   /** Live rubber-band rectangle in screen coordinates, or null. */
   marquee: { start: Vec2; end: Vec2 } | null;
+  /** Live construction symmetry. Session-only; copies bake into the document. */
+  symmetry: SymmetryMode;
   /** Whether the fold preview overlay is open. */
   foldOpen: boolean;
   /** Whether the pattern library gallery is open. */
@@ -67,6 +70,7 @@ interface EditorState {
   setDraggingVertexId: (id: string | null) => void;
   setPointerPaper: (pos: Vec2 | null) => void;
   setMarquee: (marquee: EditorState["marquee"]) => void;
+  setSymmetry: (symmetry: SymmetryMode) => void;
   setFoldOpen: (open: boolean) => void;
   setGalleryOpen: (open: boolean) => void;
 }
@@ -88,6 +92,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   draggingVertexId: null,
   pointerPaper: null,
   marquee: null,
+  symmetry: "off",
   foldOpen: false,
   galleryOpen: false,
 
@@ -128,6 +133,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setDraggingVertexId: (draggingVertexId) => set({ draggingVertexId }),
   setPointerPaper: (pointerPaper) => set({ pointerPaper }),
   setMarquee: (marquee) => set({ marquee }),
+  setSymmetry: (symmetry) => set({ symmetry }),
   setFoldOpen: (foldOpen) => set({ foldOpen }),
   setGalleryOpen: (galleryOpen) => set({ galleryOpen }),
 }));

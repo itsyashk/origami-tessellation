@@ -1,8 +1,11 @@
 /**
  * Planarization: make the crease graph incidence-complete.
  *
- * Two rules, applied until neither fires:
+ * Three rules, applied until none fires:
  *
+ *  0. Coincident vertices fuse (`mergeVertices`): two points at the same
+ *     place are one vertex. Needed after a drop-merge, C4 collapse to the
+ *     centre, and tiling.
  *  1. A vertex lying on the interior of a crease splits that crease through
  *     itself (T-junctions, pass-through vertices).
  *  2. Two creases crossing at interior points get a new vertex at the
@@ -29,6 +32,7 @@ import {
 } from "@/geometry/segment";
 import {
   findVertexAt,
+  mergeVertices,
   splitCreaseAt,
   splitCreaseWithVertex,
   vertexMap,
@@ -44,6 +48,18 @@ export const INCIDENCE_EPSILON = 1e-4;
 
 /** Apply the first split that any rule produces, or return null if planar. */
 const nextSplit = (doc: OrigamiDocument): OrigamiDocument | null => {
+  // Rule 0: coincident vertices fuse. Two points at the same place are
+  // one vertex; leaving them stacked breaks analysis and tiling.
+  for (let i = 0; i < doc.vertices.length; i++) {
+    const keep = doc.vertices[i];
+    for (let j = i + 1; j < doc.vertices.length; j++) {
+      const other = doc.vertices[j];
+      if (distance(keep, other) <= INCIDENCE_EPSILON) {
+        return mergeVertices(doc, keep.id, other.id);
+      }
+    }
+  }
+
   const vmap = vertexMap(doc);
 
   // Rule 1: a vertex on the interior of a crease splits it.

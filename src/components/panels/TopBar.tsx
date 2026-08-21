@@ -14,11 +14,14 @@ import {
   Keyboard,
   ChevronDown,
   Layers,
+  FlipHorizontal,
 } from "lucide-react";
 import { ingestImportedDocument } from "@/origami/serialization";
 import { tileMotif } from "@/origami/tiling";
 import { renameDocument } from "@/origami/model";
+import { SYMMETRY_LABELS } from "@/origami/symmetry";
 import { downloadJson, downloadSvg, downloadFold } from "@/export/download";
+import { applySymmetryMode } from "@/editor/controller";
 import { useDocumentStore } from "@/state/documentStore";
 import { useEditorStore } from "@/state/editorStore";
 
@@ -50,10 +53,12 @@ export function TopBar() {
   const resetGesture = useEditorStore((s) => s.resetGesture);
   const setFoldOpen = useEditorStore((s) => s.setFoldOpen);
   const setGalleryOpen = useEditorStore((s) => s.setGalleryOpen);
+  const symmetry = useEditorStore((s) => s.symmetry);
 
   const [rows, setRows] = useState(2);
   const [cols, setCols] = useState(2);
   const [repeatOpen, setRepeatOpen] = useState(false);
+  const [symmetryOpen, setSymmetryOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const importJson = async (file: File) => {
@@ -240,6 +245,73 @@ export function TopBar() {
         </Popover.Portal>
       </Popover.Root>
 
+      {/* Construction symmetry */}
+      <Popover.Root open={symmetryOpen} onOpenChange={setSymmetryOpen}>
+        <Popover.Trigger asChild>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            data-testid="menu-symmetry"
+            data-active={symmetry !== "off"}
+            title="Construction symmetry (Shift+2 / Shift+4)"
+          >
+            <FlipHorizontal size={15} />
+            <span className="hidden md:inline">
+              {symmetry === "off" ? "Symmetry" : SYMMETRY_LABELS[symmetry]}
+            </span>
+          </button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content className="popover-surface w-64 p-3" sideOffset={6}>
+            <p className="mb-2 text-xs font-bold text-(--ink)">
+              Construction symmetry
+            </p>
+            <p className="mb-3 text-[11px] font-medium leading-snug text-(--ink-faint)">
+              Copies bake into the pattern around the paper centre. 4-fold
+              assumes square paper; copies off the sheet are clamped.
+            </p>
+            <div className="flex flex-col gap-1">
+              {(
+                [
+                  ["off", "Off"],
+                  ["c2", SYMMETRY_LABELS.c2],
+                  ["c4", SYMMETRY_LABELS.c4],
+                  ["mx", SYMMETRY_LABELS.mx],
+                  ["my", SYMMETRY_LABELS.my],
+                ] as const
+              ).map(([kind, label]) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className="menu-item"
+                  data-active={symmetry === kind}
+                  data-testid={`symmetry-${kind}`}
+                  onClick={() => {
+                    applySymmetryMode(kind);
+                    setSymmetryOpen(false);
+                  }}
+                >
+                  {label}
+                  {kind === "c2" ? (
+                    <span className="ml-auto text-[10px] font-bold text-(--ink-faint)">
+                      ⇧2
+                    </span>
+                  ) : kind === "c4" ? (
+                    <span className="ml-auto text-[10px] font-bold text-(--ink-faint)">
+                      ⇧4
+                    </span>
+                  ) : kind === "off" ? (
+                    <span className="ml-auto text-[10px] font-bold text-(--ink-faint)">
+                      ⇧0
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+
       {/* Fold preview */}
       <button
         type="button"
@@ -306,6 +378,10 @@ export function TopBar() {
             <ShortcutRow keys={["G"]} label="Pattern library" />
             <ShortcutRow keys={["F"]} label="Fold preview" />
             <ShortcutRow keys={["1", "2", "3"]} label="Mountain / valley / clear" />
+            <ShortcutRow keys={["⇧", "2"]} label="2-fold symmetry" />
+            <ShortcutRow keys={["⇧", "4"]} label="4-fold symmetry" />
+            <ShortcutRow keys={["⇧", "0"]} label="Symmetry off" />
+            <ShortcutRow keys={["Enter"]} label="Place vertex / complete crease" />
             <ShortcutRow keys={["↑", "↓", "←", "→"]} label="Nudge selection" />
             <ShortcutRow keys={["Ctrl", "A"]} label="Select all" />
             <ShortcutRow keys={["Ctrl", "Z"]} label="Undo" />
@@ -333,6 +409,7 @@ export function TopBar() {
         type="file"
         accept=".json,.fold,application/json"
         className="hidden"
+        data-testid="import-file"
         onChange={(ev) => {
           const file = ev.target.files?.[0];
           if (file) void importJson(file);

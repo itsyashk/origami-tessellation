@@ -299,6 +299,9 @@ body {
 .menu-item:focus-visible {
   background: var(--cyan-soft);
 }
+.menu-item[data-active="true"] {
+  background: var(--cyan-soft);
+}
 
 /* Number input */
 .field {

@@ -406,6 +406,99 @@ test.describe("editor", () => {
     expect((await foldDownload).suggestedFilename()).toMatch(/\.fold$/);
   });
 
+  test("re-imports an exported JSON file", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    await dismissOnboarding(page);
+    await page.getByTestId("menu-file").click();
+    const jsonDownload = page.waitForEvent("download");
+    await page.getByTestId("export-json").click();
+    const download = await jsonDownload;
+    const path = await download.path();
+    expect(path).toBeTruthy();
+
+    await page.getByTestId("menu-file").click();
+    await page.getByTestId("menu-new").click();
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "0 vertices · 0 creases",
+    );
+
+    await page.getByTestId("import-file").setInputFiles(path!);
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "12 vertices · 12 creases",
+    );
+  });
+
+  test("Enter places a vertex at the pointer", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    await dismissOnboarding(page);
+    await page.getByTestId("menu-file").click();
+    await page.getByTestId("menu-new").click();
+
+    await page.getByTestId("tool-vertex").click();
+    const box = (await page.getByTestId("editor-canvas").boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2 - 50, box.y + box.height / 2);
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "1 vertices · 0 creases",
+    );
+  });
+
+  test("4-fold symmetry copies a placed vertex and drags the orbit", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    await dismissOnboarding(page);
+
+    await page.getByTestId("menu-file").click();
+    await page.getByTestId("menu-new").click();
+    await page.getByTestId("menu-symmetry").click();
+    await page.getByTestId("symmetry-c4").click();
+    await expect(page.getByTestId("status-symmetry")).toHaveText("4-fold");
+    await expect(page.getByTestId("symmetry-guides")).toBeAttached();
+
+    await page.getByTestId("tool-vertex").click();
+    const box = (await page.getByTestId("editor-canvas").boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    await page.mouse.click(cx - 80, cy);
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "4 vertices · 0 creases",
+    );
+
+    await page.getByTestId("tool-select").click();
+    await page.mouse.move(cx - 80, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx - 50, cy - 40, { steps: 8 });
+    await page.mouse.up();
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "4 vertices · 0 creases",
+    );
+
+    await page.keyboard.press("Control+z");
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "4 vertices · 0 creases",
+    );
+    await page.keyboard.press("Control+z");
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "0 vertices · 0 creases",
+    );
+  });
+
+  test("enabling 4-fold on the square twist does not duplicate it", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile-iphone", "desktop flow");
+    await dismissOnboarding(page);
+    await page.getByTestId("menu-symmetry").click();
+    await page.getByTestId("symmetry-c4").click();
+    await expect(page.getByTestId("status-counts")).toHaveText(
+      "12 vertices · 12 creases",
+    );
+    await expect(page.getByTestId("analysis-flat-foldable")).toContainText(
+      "4/4 flat-foldable",
+    );
+  });
+
   test("mobile: editor loads with touch toolbar", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile-iphone", "mobile only");
     await expect(page.getByTestId("editor-canvas")).toBeVisible();

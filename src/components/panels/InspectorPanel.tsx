@@ -9,7 +9,6 @@
 import { Trash2 } from "lucide-react";
 import { radToDeg } from "@/geometry/angles";
 import {
-  applyCreaseAssignments,
   deleteGeometry,
   moveVertex,
   setCreaseAssignment,
@@ -17,6 +16,13 @@ import {
   type CreaseAssignment,
 } from "@/origami/model";
 import { planarizeDocument } from "@/origami/planarize";
+import {
+  applyAssignmentsWithOrbit,
+  assignOrbit,
+  deleteOrbit,
+  moveOrbit,
+  specFromKind,
+} from "@/origami/symmetry";
 import { suggestAssignments } from "@/origami/suggestAssignment";
 import { useDocumentStore } from "@/state/documentStore";
 import { useEditorStore, emptySelection } from "@/state/editorStore";
@@ -49,7 +55,9 @@ export function InspectorPanel() {
   const commit = useDocumentStore((s) => s.commit);
   const selection = useEditorStore((s) => s.selection);
   const setSelection = useEditorStore((s) => s.setSelection);
+  const symmetry = useEditorStore((s) => s.symmetry);
   const analysis = useAnalysis();
+  const spec = specFromKind(symmetry, doc.paper);
 
   const vertexIds = [...selection.vertexIds];
   const creaseIds = [...selection.creaseIds];
@@ -58,7 +66,10 @@ export function InspectorPanel() {
   const vmap = vertexMap(doc);
 
   const deleteSelected = () => {
-    commit(deleteGeometry(doc, vertexIds, creaseIds));
+    const next = spec
+      ? deleteOrbit(doc, vertexIds, creaseIds, spec)
+      : deleteGeometry(doc, vertexIds, creaseIds);
+    commit(planarizeDocument(next));
     setSelection(emptySelection);
   };
 
@@ -110,10 +121,15 @@ export function InspectorPanel() {
                 if (!Number.isFinite(value) || value === current) return;
                 commit(
                   planarizeDocument(
-                    moveVertex(doc, singleVertex.id, {
-                      x: axis === "x" ? value : singleVertex.x,
-                      y: axis === "y" ? value : singleVertex.y,
-                    }),
+                    spec
+                      ? moveOrbit(doc, singleVertex.id, {
+                          x: axis === "x" ? value : singleVertex.x,
+                          y: axis === "y" ? value : singleVertex.y,
+                        }, spec)
+                      : moveVertex(doc, singleVertex.id, {
+                          x: axis === "x" ? value : singleVertex.x,
+                          y: axis === "y" ? value : singleVertex.y,
+                        }),
                   ),
                 );
               };
@@ -228,7 +244,13 @@ export function InspectorPanel() {
               className="btn btn-outline mt-1 self-start"
               data-testid="apply-assignment-suggestion"
               onClick={() =>
-                commit(applyCreaseAssignments(doc, firstSuggestion.assignments))
+                commit(
+                  applyAssignmentsWithOrbit(
+                    doc,
+                    firstSuggestion.assignments,
+                    spec,
+                  ),
+                )
               }
             >
               Assign {firstSuggestion.mountains}M / {firstSuggestion.valleys}V
@@ -265,7 +287,11 @@ export function InspectorPanel() {
                 data-active={sharedAssignment === option.value}
                 data-testid={`assign-${option.value}`}
                 onClick={() =>
-                  commit(setCreaseAssignment(doc, creaseIds, option.value))
+                  commit(
+                    spec
+                      ? assignOrbit(doc, creaseIds, option.value, spec)
+                      : setCreaseAssignment(doc, creaseIds, option.value),
+                  )
                 }
               >
                 <span
